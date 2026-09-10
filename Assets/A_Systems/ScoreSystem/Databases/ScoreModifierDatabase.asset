@@ -1,0 +1,22 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 742b6d5361262db4c8b2ef9eb5c1387a, type: 3}
+  m_Name: ScoreModifierDatabase
+  m_EditorClassIdentifier: Assembly-CSharp::ScoreModifierDatabase
+  entries:
+  - {fileID: 11400000, guid: 5c5c2bf59158fa244a72025ff92e88c4, type: 2}
+  - {fileID: 11400000, guid: 9e55d5f36f507104ab9bee11aaf83405, type: 2}
+  - {fileID: 11400000, guid: 9ef986d3e30e0ca4b8d293328a53a033, type: 2}
+  - {fileID: 11400000, guid: 4fa1fc01612242447b5c5363034296eb, type: 2}
+  - {fileID: 11400000, guid: 02557cc1d97a79a4bb5c094f2e4c11d0, type: 2}
+  - {fileID: 11400000, guid: 45fa8096135d87544bfda9c9aac409b3, type: 2}
+  scanFolder: A_System/ScoreSystem/Properties
