@@ -23,6 +23,8 @@ public class ScoreManager : MonoBehaviour
     [SerializeField, Min(0f)] private double baseUnitSalePrice = 1d;
     [SerializeField, Min(0f)] private double nangPerSecond = 1d;
     [SerializeField, Min(0f)] private double money;
+    [Tooltip("The largest Money value reached during this run. Spending never lowers this value.")]
+    [SerializeField, Min(0f)] private double highestMoneyReached;
     [SerializeField, Min(0f)] private double nangAmt;
 
     [Header("Production Tick")]
@@ -54,6 +56,7 @@ public class ScoreManager : MonoBehaviour
     public double BaseUnitSalePrice => baseUnitSalePrice;
     public double NangPerSecond => nangPerSecond;
     public double Money => money;
+    public double HighestMoneyReached => highestMoneyReached;
     public double NangAmt => nangAmt;
     public bool IsSimulationPaused => isSimulationPaused;
     public float ProductionTickInterval => Mathf.Max(MinimumProductionTickInterval, productionTickInterval);
@@ -96,6 +99,7 @@ public class ScoreManager : MonoBehaviour
         }
 
         Instance = this;
+        highestMoneyReached = Math.Max(highestMoneyReached, money);
     }
 
     private void Start()
@@ -191,6 +195,7 @@ public class ScoreManager : MonoBehaviour
         }
 
         money = Math.Max(0d, money + amount);
+        UpdateHighestMoneyReached();
         OnScoreChanged?.Invoke();
     }
 
@@ -350,6 +355,7 @@ public class ScoreManager : MonoBehaviour
         {
             nangAmt += lastTickTotalNang;
             money += lastTickIncome;
+            UpdateHighestMoneyReached();
             OnScoreChanged?.Invoke();
         }
 
@@ -436,6 +442,12 @@ public class ScoreManager : MonoBehaviour
         }
 
         return true;
+    }
+
+    private void UpdateHighestMoneyReached()
+    {
+        if (money > highestMoneyReached)
+            highestMoneyReached = money;
     }
 
     private static bool IsFinite(double value)
