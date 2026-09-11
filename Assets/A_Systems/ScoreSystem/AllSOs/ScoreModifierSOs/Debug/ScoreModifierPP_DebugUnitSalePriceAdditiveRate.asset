@@ -10,13 +10,13 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: ef69368b3c2146743aced20e7a730af3, type: 3}
-  m_Name: DebugIncomeMultiplier
+  m_Name: ScoreModifierPP_DebugUnitSalePriceAdditiveRate
   m_EditorClassIdentifier: Assembly-CSharp::ScoreModifierProperty
-  enumKey: 5
-  stringKey: DebugIncomeMultiplier
-  modifierType: 5
-  amount: 1.1
+  enumKey: 1
+  stringKey: DebugUnitSalePriceAdditiveRate
+  modifierType: 1
+  amount: 0.1
   defaultDuration: 0
-  displayName: "Debug\uFF1A\u603B\u6536\u5165\u4E58\u6570 \xD71.10"
+  displayName: "Debug\uFF1A\u5355\u4EF7\u52A0\u6210 +10%"
   icon: {fileID: 0}
-  description: "\u6C38\u4E45\uFF1Ae *= 1.10\u3002"
+  description: "\u6C38\u4E45\uFF1Aa += 0.10\u3002"

@@ -78,6 +78,10 @@ Database asset:  <Family>DB_main.asset
 Property asset:  <Family>PP_<Identifier>.asset
 ```
 
+### Family stem
+
+`<Family>` is the shared stem, never the full class name. Derive it by removing a trailing `Property` or `Database` from the matched types. For example, `ScoreModifierProperty` and `ScoreModifierDatabase` use the family `ScoreModifier`, so their assets use `ScoreModifierPP_...` and `ScoreModifierDB_...`, never `ScoreModifierPropertyPP_...` or `ScoreModifierDatabaseDB_...`.
+
 Use the standard base types for a new ordinary family:
 
 ```csharp

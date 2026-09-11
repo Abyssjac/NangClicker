@@ -3,7 +3,6 @@ using System.Collections.Generic;
 using UnityEngine;
 using JackyUtility;
 
-[DefaultExecutionOrder(-1000)]
 public class AllCameraManager : MonoBehaviour
 {
     public static AllCameraManager Instance { get; private set; }

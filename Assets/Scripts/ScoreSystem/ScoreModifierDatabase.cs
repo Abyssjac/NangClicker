@@ -2,10 +2,10 @@ using JackyUtility;
 using UnityEngine;
 
 [CreateAssetMenu(
-    fileName = "ScoreModifierDatabase_",
-    menuName = "Nang Clicker/Score System/Score Modifier Database")]
+    fileName = "ScoreModifierDB_",
+    menuName = "AllPropertyDatabases/ScoreModifierDatabase")]
 public class ScoreModifierDatabase
-    : EnumStringKeyedDatabase<ScoreModifierProperty, ScoreModifierPropertyId>
+    : EnumStringKeyedDatabase<ScoreModifierProperty, Key_ScoreModifierPP>
 {
 #if UNITY_EDITOR
     [ContextMenu("Collect Entries From Folder")]

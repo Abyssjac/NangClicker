@@ -3,7 +3,6 @@ using System.Collections.Generic;
 using JackyUtility;
 using UnityEngine;
 
-[DefaultExecutionOrder(-900)]
 public class ScoreManager : MonoBehaviour
 {
     private const float MinimumProductionTickInterval = 0.01f;
@@ -16,8 +15,9 @@ public class ScoreManager : MonoBehaviour
 
     public static ScoreManager Instance { get; private set; }
 
-    [Header("Database")]
-    [SerializeField] private ScoreModifierDatabase scoreModifierDatabase;
+    // The database is resolved from PropertyDatabaseManager and cached at runtime.
+    // It intentionally is not a scene-level serialized reference.
+    private ScoreModifierDatabase scoreModifierDatabase;
 
     [Header("Authoritative Base State")]
     [SerializeField, Min(0f)] private double baseUnitSalePrice = 1d;
@@ -34,9 +34,9 @@ public class ScoreManager : MonoBehaviour
     [Header("Debug")]
     [SerializeField] private bool isSimulationPaused;
 
-    private readonly List<ScoreModifierPropertyId> permanentModifierHistory = new();
-    private readonly Dictionary<ScoreModifierPropertyId, TemporaryScoreModifierState> temporaryModifiers = new();
-    private readonly List<ScoreModifierPropertyId> temporaryKeyBuffer = new();
+    private readonly List<Key_ScoreModifierPP> permanentModifierHistory = new();
+    private readonly Dictionary<Key_ScoreModifierPP, TemporaryScoreModifierState> temporaryModifiers = new();
+    private readonly List<Key_ScoreModifierPP> temporaryKeyBuffer = new();
 
     private bool isInitialized;
     private float productionTickTimer;
@@ -75,13 +75,13 @@ public class ScoreManager : MonoBehaviour
     public double FinalSaleValuePerNang { get; private set; }
     public double IncomePerSecond { get; private set; }
 
-    public IReadOnlyList<ScoreModifierPropertyId> PermanentModifierHistory => permanentModifierHistory;
-    public IReadOnlyDictionary<ScoreModifierPropertyId, float> TemporaryModifierRemainingTimes
+    public IReadOnlyList<Key_ScoreModifierPP> PermanentModifierHistory => permanentModifierHistory;
+    public IReadOnlyDictionary<Key_ScoreModifierPP, float> TemporaryModifierRemainingTimes
     {
         get
         {
-            Dictionary<ScoreModifierPropertyId, float> result = new();
-            foreach (KeyValuePair<ScoreModifierPropertyId, TemporaryScoreModifierState> pair in temporaryModifiers)
+            Dictionary<Key_ScoreModifierPP, float> result = new();
+            foreach (KeyValuePair<Key_ScoreModifierPP, TemporaryScoreModifierState> pair in temporaryModifiers)
                 result.Add(pair.Key, pair.Value.RemainingTime);
             return result;
         }
@@ -137,7 +137,7 @@ public class ScoreManager : MonoBehaviour
     /// Applies a score Property by its enum identity. A Property with DefaultDuration <= 0 is permanent.
     /// A temporary Property uses its DefaultDuration unless a positive duration override is supplied.
     /// </summary>
-    public bool TweakScore(ScoreModifierPropertyId propertyId, float durationOverride = -1f)
+    public bool TweakScore(Key_ScoreModifierPP propertyId, float durationOverride = -1f)
     {
         if (!TryGetScoreModifierProperty(propertyId, out ScoreModifierProperty property))
         {
@@ -166,13 +166,13 @@ public class ScoreManager : MonoBehaviour
         return TweakScore(property.ModifierType, property.Amount, propertyId, 0f);
     }
 
-    public bool TryGetScoreModifierProperty(ScoreModifierPropertyId propertyId, out ScoreModifierProperty property)
+    public bool TryGetScoreModifierProperty(Key_ScoreModifierPP propertyId, out ScoreModifierProperty property)
     {
         property = null;
         return ResolveDatabase() && scoreModifierDatabase.TryGetByEnum(propertyId, out property);
     }
 
-    public ScoreModifierProperty GetScoreModifierProperty(ScoreModifierPropertyId propertyId)
+    public ScoreModifierProperty GetScoreModifierProperty(Key_ScoreModifierPP propertyId)
     {
         return TryGetScoreModifierProperty(propertyId, out ScoreModifierProperty property) ? property : null;
     }
@@ -259,7 +259,7 @@ public class ScoreManager : MonoBehaviour
     private bool TweakScore(
         ScoreModifierType modifierType,
         double amount,
-        ScoreModifierPropertyId sourceId,
+        Key_ScoreModifierPP sourceId,
         float duration)
     {
         if (!CanApplyModifier(modifierType, amount))
@@ -296,13 +296,13 @@ public class ScoreManager : MonoBehaviour
             return;
 
         temporaryKeyBuffer.Clear();
-        foreach (KeyValuePair<ScoreModifierPropertyId, TemporaryScoreModifierState> pair in temporaryModifiers)
+        foreach (KeyValuePair<Key_ScoreModifierPP, TemporaryScoreModifierState> pair in temporaryModifiers)
             temporaryKeyBuffer.Add(pair.Key);
 
         bool expiredAnyModifier = false;
         for (int i = 0; i < temporaryKeyBuffer.Count; i++)
         {
-            ScoreModifierPropertyId propertyId = temporaryKeyBuffer[i];
+            Key_ScoreModifierPP propertyId = temporaryKeyBuffer[i];
             TemporaryScoreModifierState state = temporaryModifiers[propertyId];
             state.RemainingTime -= deltaTime;
 
@@ -369,7 +369,7 @@ public class ScoreManager : MonoBehaviour
             for (int i = 0; i < permanentModifierHistory.Count; i++)
                 ApplyPropertyContribution(permanentModifierHistory[i]);
 
-            foreach (KeyValuePair<ScoreModifierPropertyId, TemporaryScoreModifierState> pair in temporaryModifiers)
+            foreach (KeyValuePair<Key_ScoreModifierPP, TemporaryScoreModifierState> pair in temporaryModifiers)
             {
                 if (pair.Value.RemainingTime > 0f)
                     ApplyPropertyContribution(pair.Key);
@@ -382,7 +382,7 @@ public class ScoreManager : MonoBehaviour
         IncomePerSecond = FinalSaleValuePerNang * nangPerSecond;
     }
 
-    private void ApplyPropertyContribution(ScoreModifierPropertyId propertyId)
+    private void ApplyPropertyContribution(Key_ScoreModifierPP propertyId)
     {
         if (!scoreModifierDatabase.TryGetByEnum(propertyId, out ScoreModifierProperty property) || property == null)
             return;

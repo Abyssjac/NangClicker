@@ -10,7 +10,7 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: ef69368b3c2146743aced20e7a730af3, type: 3}
-  m_Name: DebugIncomeAdditiveRate
+  m_Name: ScoreModifierPP_DebugIncomeAdditiveRate
   m_EditorClassIdentifier: Assembly-CSharp::ScoreModifierProperty
   enumKey: 4
   stringKey: DebugIncomeAdditiveRate

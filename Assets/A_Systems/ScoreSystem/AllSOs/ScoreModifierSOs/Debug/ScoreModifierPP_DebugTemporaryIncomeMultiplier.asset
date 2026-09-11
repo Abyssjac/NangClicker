@@ -10,13 +10,13 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: ef69368b3c2146743aced20e7a730af3, type: 3}
-  m_Name: DebugUnitSalePriceFlatBonus
+  m_Name: ScoreModifierPP_DebugTemporaryIncomeMultiplier
   m_EditorClassIdentifier: Assembly-CSharp::ScoreModifierProperty
-  enumKey: 3
-  stringKey: DebugUnitSalePriceFlatBonus
-  modifierType: 3
-  amount: 1
-  defaultDuration: 0
-  displayName: "Debug\uFF1A\u5355\u4EF7\u56FA\u5B9A\u503C +1"
+  enumKey: 6
+  stringKey: DebugTemporaryIncomeMultiplier
+  modifierType: 5
+  amount: 2
+  defaultDuration: 10
+  displayName: "Debug\uFF1A10 \u79D2\u603B\u6536\u5165 \xD72"
   icon: {fileID: 0}
-  description: "\u6C38\u4E45\uFF1Ac += 1\u3002"
+  description: "\u4E34\u65F6\uFF1Ae *= 2\uFF1B\u540C\u4E00 ID \u91CD\u590D\u65BD\u52A0\u4EC5\u5EF6\u957F\u5269\u4F59\u65F6\u95F4\u3002"

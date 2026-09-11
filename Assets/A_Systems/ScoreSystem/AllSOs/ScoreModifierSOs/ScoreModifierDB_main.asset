@@ -1,0 +1,35 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 742b6d5361262db4c8b2ef9eb5c1387a, type: 3}
+  m_Name: ScoreModifierDB_main
+  m_EditorClassIdentifier: Assembly-CSharp::ScoreModifierDatabase
+  entries:
+  - {fileID: 11400000, guid: 7ba3add735bf5b947b864394b1685d3d, type: 2}
+  - {fileID: 11400000, guid: 5c5c2bf59158fa244a72025ff92e88c4, type: 2}
+  - {fileID: 11400000, guid: 9e55d5f36f507104ab9bee11aaf83405, type: 2}
+  - {fileID: 11400000, guid: 9ef986d3e30e0ca4b8d293328a53a033, type: 2}
+  - {fileID: 11400000, guid: 4fa1fc01612242447b5c5363034296eb, type: 2}
+  - {fileID: 11400000, guid: 02557cc1d97a79a4bb5c094f2e4c11d0, type: 2}
+  - {fileID: 11400000, guid: 45fa8096135d87544bfda9c9aac409b3, type: 2}
+  - {fileID: 11400000, guid: 8a78e6c96032d0f4ca43aea65a01a271, type: 2}
+  - {fileID: 11400000, guid: fc2fcc34c69efab40af153ae1eb5b53c, type: 2}
+  - {fileID: 11400000, guid: bc963949f41c3454593991be81a63dc9, type: 2}
+  - {fileID: 11400000, guid: 4e63c03d766f2a8449bf3e948ec70620, type: 2}
+  - {fileID: 11400000, guid: 98fbf162440820c43b317dd5dbe27a9b, type: 2}
+  - {fileID: 11400000, guid: 009489afbb1951943a55c83c6a94cd35, type: 2}
+  - {fileID: 11400000, guid: 906c67df5cc89fd4cbd9ff272c0c4cfd, type: 2}
+  - {fileID: 11400000, guid: 8da161bf0a58a73478a882a26af10387, type: 2}
+  - {fileID: 11400000, guid: 34d88729116e4484481417c109248832, type: 2}
+  - {fileID: 11400000, guid: d674d0849694b0f42ba902b831d11803, type: 2}
+  - {fileID: 11400000, guid: b9c0126a2f889734781443c283a7add5, type: 2}
+  - {fileID: 11400000, guid: ecad047a485203d4bb1dc5deaeb3bc72, type: 2}
+  scanFolder: A_Systems/ScoreSystem/AllSOs/ScoreModifierSOs

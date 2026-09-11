@@ -52,6 +52,22 @@ PrefabInstance:
       propertyPath: m_LocalEulerAnglesHint.z
       value: 0
       objectReference: {fileID: 0}
+    - target: {fileID: 6961653617491484666, guid: 6d2e17855d1197545a326b1e823073f3, type: 3}
+      propertyPath: allDatabases.Array.size
+      value: 2
+      objectReference: {fileID: 0}
+    - target: {fileID: 6961653617491484666, guid: 6d2e17855d1197545a326b1e823073f3, type: 3}
+      propertyPath: 'allDatabases.Array.data[0]'
+      value: 
+      objectReference: {fileID: 11400000, guid: 9938939e24257844f8c0c89ddbb8999a, type: 2}
+    - target: {fileID: 6961653617491484666, guid: 6d2e17855d1197545a326b1e823073f3, type: 3}
+      propertyPath: 'allDatabases.Array.data[1]'
+      value: 
+      objectReference: {fileID: 11400000, guid: 832201593defa0042965c03caacfc112, type: 2}
+    - target: {fileID: 7292739574960922526, guid: 6d2e17855d1197545a326b1e823073f3, type: 3}
+      propertyPath: defaultCameraMode
+      value: 20
+      objectReference: {fileID: 0}
     m_RemovedComponents: []
     m_RemovedGameObjects: []
     m_AddedGameObjects: []

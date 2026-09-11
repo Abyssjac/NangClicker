@@ -2,9 +2,9 @@ using JackyUtility;
 using UnityEngine;
 
 [CreateAssetMenu(
-    fileName = "ScoreModifierProperty_",
-    menuName = "Nang Clicker/Score System/Score Modifier Property")]
-public class ScoreModifierProperty : EnumStringKeyedProperty<ScoreModifierPropertyId>
+    fileName = "ScoreModifierPP_",
+    menuName = "AllProperties/ScoreModifierProperty")]
+public class ScoreModifierProperty : EnumStringKeyedProperty<Key_ScoreModifierPP>
 {
     [Header("Formula")]
     [SerializeField] private ScoreModifierType modifierType;
@@ -15,6 +15,9 @@ public class ScoreModifierProperty : EnumStringKeyedProperty<ScoreModifierProper
     [Header("Lifetime")]
     [Tooltip("0 means this is a permanent Property. A positive value makes it temporary. Reapplying the same temporary Property extends time but does not stack its amount.")]
     [SerializeField, Min(0f)] private float defaultDuration;
+
+    [Header("UpgradePrice")]
+    [SerializeField] private double upgradePrice;
 
     [Header("UI Display")]
     [SerializeField] private string displayName;
@@ -28,4 +31,5 @@ public class ScoreModifierProperty : EnumStringKeyedProperty<ScoreModifierProper
     public string DisplayName => string.IsNullOrWhiteSpace(displayName) ? name : displayName;
     public Sprite Icon => icon;
     public string Description => description;
+    public double UpgradePrice => upgradePrice;
 }

@@ -5,7 +5,7 @@ using UnityEngine;
 
 public class ScoreManagerDebugWindow : DebugEditorWindow<ScoreManager>
 {
-    private ScoreModifierPropertyId selectedPropertyId = ScoreModifierPropertyId.None;
+    private Key_ScoreModifierPP selectedPropertyId = Key_ScoreModifierPP.None;
     private bool useDurationOverride;
     private float durationOverride = 10f;
     private double manualNangToQueue = 1d;
@@ -99,7 +99,7 @@ public class ScoreManagerDebugWindow : DebugEditorWindow<ScoreManager>
             return;
         }
 
-        selectedPropertyId = (ScoreModifierPropertyId)EditorGUILayout.EnumPopup(
+        selectedPropertyId = (Key_ScoreModifierPP)EditorGUILayout.EnumPopup(
             "Property Id", selectedPropertyId);
 
         ScoreModifierProperty property = manager.GetScoreModifierProperty(selectedPropertyId);
@@ -139,22 +139,22 @@ public class ScoreManagerDebugWindow : DebugEditorWindow<ScoreManager>
     private void DrawPermanentModifierHistory(ScoreManager manager)
     {
         Header("Permanent Modifier History");
-        IReadOnlyList<ScoreModifierPropertyId> history = manager.PermanentModifierHistory;
+        IReadOnlyList<Key_ScoreModifierPP> history = manager.PermanentModifierHistory;
         if (history.Count == 0)
         {
             EditorGUILayout.LabelField("None");
             return;
         }
 
-        Dictionary<ScoreModifierPropertyId, int> stackCounts = new();
+        Dictionary<Key_ScoreModifierPP, int> stackCounts = new();
         for (int i = 0; i < history.Count; i++)
         {
-            ScoreModifierPropertyId id = history[i];
+            Key_ScoreModifierPP id = history[i];
             stackCounts.TryGetValue(id, out int count);
             stackCounts[id] = count + 1;
         }
 
-        foreach (KeyValuePair<ScoreModifierPropertyId, int> pair in stackCounts)
+        foreach (KeyValuePair<Key_ScoreModifierPP, int> pair in stackCounts)
         {
             ScoreModifierProperty property = manager.GetScoreModifierProperty(pair.Key);
             string label = property != null ? property.DisplayName : pair.Key.ToString();
@@ -165,7 +165,7 @@ public class ScoreManagerDebugWindow : DebugEditorWindow<ScoreManager>
     private void DrawTemporaryModifiers(ScoreManager manager)
     {
         Header("Temporary Modifiers");
-        IReadOnlyDictionary<ScoreModifierPropertyId, float> activeModifiers =
+        IReadOnlyDictionary<Key_ScoreModifierPP, float> activeModifiers =
             manager.TemporaryModifierRemainingTimes;
 
         if (activeModifiers.Count == 0)
@@ -174,7 +174,7 @@ public class ScoreManagerDebugWindow : DebugEditorWindow<ScoreManager>
             return;
         }
 
-        foreach (KeyValuePair<ScoreModifierPropertyId, float> pair in activeModifiers)
+        foreach (KeyValuePair<Key_ScoreModifierPP, float> pair in activeModifiers)
         {
             ScoreModifierProperty property = manager.GetScoreModifierProperty(pair.Key);
             string label = property != null ? property.DisplayName : pair.Key.ToString();

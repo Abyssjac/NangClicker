@@ -1,0 +1,23 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: ef69368b3c2146743aced20e7a730af3, type: 3}
+  m_Name: ScoreModifierPP_RollingPin_4
+  m_EditorClassIdentifier: Assembly-CSharp::ScoreModifierProperty
+  enumKey: 11
+  stringKey: 
+  modifierType: 1
+  amount: 0.5
+  defaultDuration: 0
+  upgradePrice: 480
+  displayName: Brand-New Rolling Pin V
+  icon: {fileID: 0}
+  description: The dough becomes chewier, and customers like it more.

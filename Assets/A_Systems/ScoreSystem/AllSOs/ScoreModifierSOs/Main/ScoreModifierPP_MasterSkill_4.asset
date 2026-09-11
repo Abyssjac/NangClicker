@@ -10,13 +10,14 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: ef69368b3c2146743aced20e7a730af3, type: 3}
-  m_Name: DebugUnitSalePriceAdditiveRate
+  m_Name: ScoreModifierPP_MasterSkill_4
   m_EditorClassIdentifier: Assembly-CSharp::ScoreModifierProperty
-  enumKey: 1
-  stringKey: DebugUnitSalePriceAdditiveRate
-  modifierType: 1
-  amount: 0.1
+  enumKey: 16
+  stringKey: 
+  modifierType: 2
+  amount: 1.1
   defaultDuration: 0
-  displayName: "Debug\uFF1A\u5355\u4EF7\u52A0\u6210 +10%"
+  upgradePrice: 1600
+  displayName: Learning Tricks from the Master V
   icon: {fileID: 0}
-  description: "\u6C38\u4E45\uFF1Aa += 0.10\u3002"
+  description: You've learned more tricks from the master, and your skills have improved.
