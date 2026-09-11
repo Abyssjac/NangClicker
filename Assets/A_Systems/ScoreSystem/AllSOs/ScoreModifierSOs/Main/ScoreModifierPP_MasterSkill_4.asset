@@ -19,5 +19,5 @@ MonoBehaviour:
   defaultDuration: 0
   upgradePrice: 1600
   displayName: Learning Tricks from the Master V
-  icon: {fileID: 0}
+  icon: {fileID: 21300000, guid: 974205bea29aa3842b4134b5a5b5642a, type: 3}
   description: You've learned more tricks from the master, and your skills have improved.

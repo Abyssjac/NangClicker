@@ -19,5 +19,5 @@ MonoBehaviour:
   defaultDuration: 0
   upgradePrice: 480
   displayName: Brand-New Rolling Pin V
-  icon: {fileID: 0}
+  icon: {fileID: 21300000, guid: 9030dcdf8ca68344a801cfc059184fb1, type: 3}
   description: The dough becomes chewier, and customers like it more.
