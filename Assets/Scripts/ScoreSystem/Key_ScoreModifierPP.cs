@@ -24,4 +24,13 @@ public enum Key_ScoreModifierPP
 
     BigNaan_0 = 17,
     BigNaan_1 = 18,
+
+    MoreWorkers_0 = 19,
+    MoreWorkers_1 = 20,
+    MoreWorkers_2 = 21,
+    MoreWorkers_3 = 22,
+    MoreWorkers_4 = 23,
+
+    NaanBakingMachine_0 = 24,
+    NaanBakingMachine_1 = 25,
 }

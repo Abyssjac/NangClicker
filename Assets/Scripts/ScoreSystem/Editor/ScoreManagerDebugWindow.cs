@@ -50,7 +50,9 @@ public class ScoreManagerDebugWindow : DebugEditorWindow<ScoreManager>
         Row("Money", Format(manager.Money));
         Row("Nang Amt", Format(manager.NangAmt));
         Row("Base Unit Sale Price", Format(manager.BaseUnitSalePrice));
-        Row("Nang / Sec", Format(manager.NangPerSecond));
+        Row("Base Auto Nang / Sec", Format(manager.NangPerSecond));
+        Row("Auto Nang Additive Bonus", Format(manager.AutoNangAdditiveBonus));
+        Row("Final Auto Nang / Sec", Format(manager.FinalAutoNangPerSec));
         Row("Unit Sale Price", Format(manager.UnitSalePrice));
         Row("Final Sale Value / Nang", Format(manager.FinalSaleValuePerNang));
         Row("Income / Sec", Format(manager.IncomePerSecond));
@@ -87,6 +89,7 @@ public class ScoreManagerDebugWindow : DebugEditorWindow<ScoreManager>
         Row("c - Unit Price Flat Bonus", Format(manager.UnitSalePriceFlatBonus));
         Row("d - Income Additive Rate", Format(manager.IncomeAdditiveRate));
         Row("e - Income Multiplier", Format(manager.IncomeMultiplier));
+        Row("Auto Nang Additive Amount", Format(manager.AutoNangAdditiveBonus));
     }
 
     private void DrawPropertyTweakControls(ScoreManager manager)

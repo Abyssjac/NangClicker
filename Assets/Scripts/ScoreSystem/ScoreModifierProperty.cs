@@ -9,7 +9,7 @@ public class ScoreModifierProperty : EnumStringKeyedProperty<Key_ScoreModifierPP
     [Header("Formula")]
     [SerializeField] private ScoreModifierType modifierType;
 
-    [Tooltip("For additive rates, use 0.1 for +10%. For multipliers, use 1.1 for x1.1. Flat bonuses use direct money values.")]
+    [Tooltip("For additive rates, use 0.1 for +10%. For multipliers, use 1.1 for x1.1. Unit-price flat bonuses use direct money values. Auto Nang Additive Amount uses direct +X Nang / Sec values.")]
     [SerializeField] private double amount;
 
     [Header("Lifetime")]

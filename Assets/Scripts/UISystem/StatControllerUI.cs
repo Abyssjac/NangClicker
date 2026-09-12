@@ -84,8 +84,8 @@ public class StatControllerUI : MonoBehaviour
         if (scoreManager.LastTickTotalNang > 0d)
             return scoreManager.LastTickTotalNang / scoreManager.ProductionTickInterval;
 
-        // Before the first settlement, show the known automatic rate rather than an empty zero.
-        return scoreManager.NangPerSecond;
+        // Before the first settlement, show the effective automatic rate rather than an empty zero.
+        return scoreManager.FinalAutoNangPerSec;
     }
 
     private static string FormatValue(double value)

@@ -65,12 +65,12 @@ public sealed class ScoreFormulaDebugUI : MonoBehaviour
 
         formulaText.text =
             "Profit Formula\n" +
-            "Income / Sec = ((((1 + a) \u00D7 b \u00D7 Base Price) + c) \u00D7 (1 + d) \u00D7 e) \u00D7 Nang / Sec\n" +
+            "Income / Sec = ((((1 + a) \u00D7 b \u00D7 Base Price) + c) \u00D7 (1 + d) \u00D7 e) \u00D7 Final Auto Nang / Sec\n" +
             $"a = {FormatPercent(scoreManager.UnitSalePriceAdditiveRate)}    b = {FormatMultiplier(scoreManager.UnitSalePriceMultiplier)}    c = {FormatSigned(scoreManager.UnitSalePriceFlatBonus)}\n" +
             $"d = {FormatPercent(scoreManager.IncomeAdditiveRate)}    e = {FormatMultiplier(scoreManager.IncomeMultiplier)}\n" +
-            $"Base Price = {FormatNumber(scoreManager.BaseUnitSalePrice)}    Nang / Sec = {FormatNumber(scoreManager.NangPerSecond)}\n" +
-            $"Final Sale / Nang = {FormatNumber(scoreManager.FinalSaleValuePerNang)}\n" +
-            $"Income / Sec = {FormatNumber(scoreManager.IncomePerSecond)}";
+            $"Base Price = {FormatNumber(scoreManager.BaseUnitSalePrice)}\n" +
+            $"Auto Nang / Sec = {FormatNumber(scoreManager.NangPerSecond)} + {FormatSigned(scoreManager.AutoNangAdditiveBonus)} = {FormatNumber(scoreManager.FinalAutoNangPerSec)}\n" +
+            $"Final Sale / Nang = {FormatNumber(scoreManager.FinalSaleValuePerNang)}    Income / Sec = {FormatNumber(scoreManager.IncomePerSecond)}";
     }
 
     private IEnumerator RefreshAfterScoreManagerInitialization()

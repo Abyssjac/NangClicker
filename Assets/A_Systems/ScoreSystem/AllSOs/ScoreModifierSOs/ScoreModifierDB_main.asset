@@ -32,4 +32,11 @@ MonoBehaviour:
   - {fileID: 11400000, guid: d674d0849694b0f42ba902b831d11803, type: 2}
   - {fileID: 11400000, guid: b9c0126a2f889734781443c283a7add5, type: 2}
   - {fileID: 11400000, guid: ecad047a485203d4bb1dc5deaeb3bc72, type: 2}
+  - {fileID: 11400000, guid: 63d09f6ea6d74900a1fec78adaee00fd, type: 2}
+  - {fileID: 11400000, guid: d62a0da9ecc644618a5d9f49ec08473a, type: 2}
+  - {fileID: 11400000, guid: 78426ed6a9124e659a0689205c5b5fc9, type: 2}
+  - {fileID: 11400000, guid: 71d462d42f93462184792dedb0de7359, type: 2}
+  - {fileID: 11400000, guid: 6326d5e4e3384cdb91adc062d95843b7, type: 2}
+  - {fileID: 11400000, guid: d113d20e51ad4a7eb619ab4aa2eaf6c3, type: 2}
+  - {fileID: 11400000, guid: a5e5eeab6ac44cbc86a782f2a4911bbd, type: 2}
   scanFolder: A_Systems/ScoreSystem/AllSOs/ScoreModifierSOs

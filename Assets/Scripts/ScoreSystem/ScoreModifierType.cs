@@ -16,4 +16,7 @@ public enum ScoreModifierType
 
     // e: Multiply all contributions. The neutral value is 1.
     IncomeMultiplier = 5,
+
+    // Adds a direct +X Nang / Sec to automatic production. The neutral value is 0.
+    AutoNangAdditiveAmt = 6,
 }

@@ -74,6 +74,8 @@ public class ScoreManager : MonoBehaviour
     public double UnitSalePriceFlatBonus { get; private set; }
     public double IncomeAdditiveRate { get; private set; }
     public double IncomeMultiplier { get; private set; } = 1d;
+    public double AutoNangAdditiveBonus { get; private set; }
+    public double FinalAutoNangPerSec { get; private set; }
     public double UnitSalePrice { get; private set; }
     public double FinalSaleValuePerNang { get; private set; }
     public double IncomePerSecond { get; private set; }
@@ -345,7 +347,7 @@ public class ScoreManager : MonoBehaviour
 
     private void SettleProductionTick(float tickDuration)
     {
-        lastTickAutomaticNang = nangPerSecond * tickDuration;
+        lastTickAutomaticNang = FinalAutoNangPerSec * tickDuration;
         lastTickManualNang = pendingManualNang;
         lastTickTotalNang = lastTickAutomaticNang + lastTickManualNang;
         lastTickIncome = FinalSaleValuePerNang * lastTickTotalNang;
@@ -369,6 +371,7 @@ public class ScoreManager : MonoBehaviour
         UnitSalePriceFlatBonus = 0d;
         IncomeAdditiveRate = 0d;
         IncomeMultiplier = 1d;
+        AutoNangAdditiveBonus = 0d;
 
         if (ResolveDatabase())
         {
@@ -385,7 +388,8 @@ public class ScoreManager : MonoBehaviour
         UnitSalePrice = (((1d + UnitSalePriceAdditiveRate) * UnitSalePriceMultiplier * baseUnitSalePrice)
                          + UnitSalePriceFlatBonus);
         FinalSaleValuePerNang = UnitSalePrice * (1d + IncomeAdditiveRate) * IncomeMultiplier;
-        IncomePerSecond = FinalSaleValuePerNang * nangPerSecond;
+        FinalAutoNangPerSec = nangPerSecond + AutoNangAdditiveBonus;
+        IncomePerSecond = FinalSaleValuePerNang * FinalAutoNangPerSec;
     }
 
     private void ApplyPropertyContribution(Key_ScoreModifierPP propertyId)
@@ -409,6 +413,9 @@ public class ScoreManager : MonoBehaviour
                 break;
             case ScoreModifierType.IncomeMultiplier:
                 IncomeMultiplier *= property.Amount;
+                break;
+            case ScoreModifierType.AutoNangAdditiveAmt:
+                AutoNangAdditiveBonus += property.Amount;
                 break;
         }
     }
