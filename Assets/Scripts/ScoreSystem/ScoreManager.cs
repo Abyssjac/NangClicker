@@ -190,13 +190,13 @@ public class ScoreManager : MonoBehaviour
 
     public void AddMoney(double amount)
     {
-        if (!IsFinite(amount))
+        if (!IsFinite(amount) || amount <= 0d)
         {
-            Debug.LogError($"[{nameof(ScoreManager)}] Cannot add a non-finite money value.", this);
+            Debug.LogError($"[{nameof(ScoreManager)}] Money additions must be finite and greater than zero.", this);
             return;
         }
 
-        money = Math.Max(0d, money + amount);
+        money += amount;
         UpdateHighestMoneyReached();
         OnScoreChanged?.Invoke();
     }
@@ -260,6 +260,21 @@ public class ScoreManager : MonoBehaviour
         nangPerSecond = value;
         RecalculateScores();
         OnScoreChanged?.Invoke();
+    }
+
+    /// <summary>
+    /// Adds to the authoritative base automatic Nang production rate. This deliberately does not
+    /// write FinalAutoNangPerSec, which remains a derived value including modifier bonuses.
+    /// </summary>
+    public bool AddNangPerSecond(double amount)
+    {
+        if (!IsFinite(amount) || amount <= 0d)
+            return false;
+
+        nangPerSecond += amount;
+        RecalculateScores();
+        OnScoreChanged?.Invoke();
+        return true;
     }
 
     // The low-level modifier entry point intentionally stays private. Gameplay applies Property ids only.

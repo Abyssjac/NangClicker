@@ -9,6 +9,8 @@ public class ScoreManagerDebugWindow : DebugEditorWindow<ScoreManager>
     private bool useDurationOverride;
     private float durationOverride = 10f;
     private double manualNangToQueue = 1d;
+    private double moneyToAdd = 100d;
+    private double baseAutoNangPerSecondToAdd = 1d;
 
     [MenuItem("Jacky Tools/Score Manager")]
     public static void ShowWindow() =>
@@ -25,6 +27,7 @@ public class ScoreManagerDebugWindow : DebugEditorWindow<ScoreManager>
 
         DrawSimulationControls(manager);
         DrawScoreState(manager);
+        DrawPositiveScoreAdjustments(manager);
         DrawProductionTick(manager);
         DrawFormula(manager);
         DrawPropertyTweakControls(manager);
@@ -78,6 +81,30 @@ public class ScoreManagerDebugWindow : DebugEditorWindow<ScoreManager>
         {
             if (GUILayout.Button("Queue Manual Nang"))
                 manager.QueueManualNangProduction(manualNangToQueue);
+        }
+    }
+
+    private void DrawPositiveScoreAdjustments(ScoreManager manager)
+    {
+        Header("Add Score Values");
+        EditorGUILayout.HelpBox(
+            "These controls add positive amounts only. Final Auto Nang / Sec remains formula-derived and cannot be edited directly.",
+            MessageType.Info);
+
+        moneyToAdd = EditorGUILayout.DoubleField("Money To Add", moneyToAdd);
+        using (new EditorGUI.DisabledScope(!IsPositiveFinite(moneyToAdd)))
+        {
+            if (GUILayout.Button("Add Money"))
+                manager.AddMoney(moneyToAdd);
+        }
+
+        baseAutoNangPerSecondToAdd = EditorGUILayout.DoubleField(
+            "Base Auto Nang / Sec To Add",
+            baseAutoNangPerSecondToAdd);
+        using (new EditorGUI.DisabledScope(!IsPositiveFinite(baseAutoNangPerSecondToAdd)))
+        {
+            if (GUILayout.Button("Add Base Auto Nang / Sec"))
+                manager.AddNangPerSecond(baseAutoNangPerSecondToAdd);
         }
     }
 
@@ -188,5 +215,10 @@ public class ScoreManagerDebugWindow : DebugEditorWindow<ScoreManager>
     private static string Format(double value)
     {
         return value.ToString("0.###");
+    }
+
+    private static bool IsPositiveFinite(double value)
+    {
+        return value > 0d && !double.IsNaN(value) && !double.IsInfinity(value);
     }
 }
