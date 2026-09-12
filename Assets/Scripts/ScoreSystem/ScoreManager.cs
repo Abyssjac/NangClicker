@@ -39,6 +39,7 @@ public class ScoreManager : MonoBehaviour
     private readonly List<Key_ScoreModifierPP> permanentModifierHistory = new();
     private readonly Dictionary<Key_ScoreModifierPP, TemporaryScoreModifierState> temporaryModifiers = new();
     private readonly List<Key_ScoreModifierPP> temporaryKeyBuffer = new();
+    private readonly HashSet<Key_ScoreModifierPP> runtimeModifierIds = new();
 
     private bool isInitialized;
     private float productionTickTimer;
@@ -81,6 +82,13 @@ public class ScoreManager : MonoBehaviour
     public double IncomePerSecond { get; private set; }
 
     public IReadOnlyList<Key_ScoreModifierPP> PermanentModifierHistory => permanentModifierHistory;
+
+    /// <summary>
+    /// Modifiers that are conditionally active at runtime. Unlike permanent and temporary modifiers,
+    /// these do not represent player progress and can be removed by their owning gameplay system.
+    /// </summary>
+    public IReadOnlyCollection<Key_ScoreModifierPP> RuntimeModifierIds => runtimeModifierIds;
+
     public IReadOnlyDictionary<Key_ScoreModifierPP, float> TemporaryModifierRemainingTimes
     {
         get
@@ -186,6 +194,47 @@ public class ScoreManager : MonoBehaviour
     public void SetSimulationPaused(bool paused)
     {
         isSimulationPaused = paused;
+    }
+
+    /// <summary>
+    /// Idempotently enables or disables a condition-owned score Property. Runtime modifiers reuse
+    /// Property data for formula definition, but never enter permanent history or temporary timers.
+    /// </summary>
+    public bool SetRuntimeScoreModifierActive(Key_ScoreModifierPP propertyId, bool isActive)
+    {
+        if (propertyId == Key_ScoreModifierPP.None)
+        {
+            Debug.LogError($"[{nameof(ScoreManager)}] Runtime modifier id cannot be None.", this);
+            return false;
+        }
+
+        if (isActive)
+        {
+            if (!TryGetScoreModifierProperty(propertyId, out ScoreModifierProperty property))
+            {
+                Debug.LogError($"[{nameof(ScoreManager)}] No {nameof(ScoreModifierProperty)} found for runtime id '{propertyId}'.", this);
+                return false;
+            }
+
+            if (property.IsTemporary || !CanApplyModifier(property.ModifierType, property.Amount))
+            {
+                Debug.LogError(
+                    $"[{nameof(ScoreManager)}] Runtime modifier '{propertyId}' must use a valid non-temporary Property.",
+                    this);
+                return false;
+            }
+
+            if (!runtimeModifierIds.Add(propertyId))
+                return true;
+        }
+        else if (!runtimeModifierIds.Remove(propertyId))
+        {
+            return true;
+        }
+
+        RecalculateScores();
+        OnScoreChanged?.Invoke();
+        return true;
     }
 
     public void AddMoney(double amount)
@@ -398,6 +447,9 @@ public class ScoreManager : MonoBehaviour
                 if (pair.Value.RemainingTime > 0f)
                     ApplyPropertyContribution(pair.Key);
             }
+
+            foreach (Key_ScoreModifierPP propertyId in runtimeModifierIds)
+                ApplyPropertyContribution(propertyId);
         }
 
         UnitSalePrice = (((1d + UnitSalePriceAdditiveRate) * UnitSalePriceMultiplier * baseUnitSalePrice)

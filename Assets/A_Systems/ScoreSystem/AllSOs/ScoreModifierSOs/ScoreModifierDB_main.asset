@@ -13,7 +13,6 @@ MonoBehaviour:
   m_Name: ScoreModifierDB_main
   m_EditorClassIdentifier: Assembly-CSharp::ScoreModifierDatabase
   entries:
-  - {fileID: 11400000, guid: 7ba3add735bf5b947b864394b1685d3d, type: 2}
   - {fileID: 11400000, guid: 5c5c2bf59158fa244a72025ff92e88c4, type: 2}
   - {fileID: 11400000, guid: 9e55d5f36f507104ab9bee11aaf83405, type: 2}
   - {fileID: 11400000, guid: 9ef986d3e30e0ca4b8d293328a53a033, type: 2}
@@ -39,4 +38,5 @@ MonoBehaviour:
   - {fileID: 11400000, guid: 6326d5e4e3384cdb91adc062d95843b7, type: 2}
   - {fileID: 11400000, guid: d113d20e51ad4a7eb619ab4aa2eaf6c3, type: 2}
   - {fileID: 11400000, guid: a5e5eeab6ac44cbc86a782f2a4911bbd, type: 2}
+  - {fileID: 11400000, guid: 5b109a1fe85360e46be1657929b14aaa, type: 2}
   scanFolder: A_Systems/ScoreSystem/AllSOs/ScoreModifierSOs

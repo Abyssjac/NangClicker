@@ -33,4 +33,8 @@ public enum Key_ScoreModifierPP
 
     NaanBakingMachine_0 = 24,
     NaanBakingMachine_1 = 25,
+
+    // Runtime-only: activated by FurnaceHeatManager while the heat pointer is in range.
+    // This is intentionally not purchased through UpgradeManager or recorded as player progress.
+    FurnaceHeatIncomeMultiplier = 26,
 }
