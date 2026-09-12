@@ -1,5 +1,6 @@
 using System.Collections.Generic;
 using UnityEngine;
+using UnityEngine.UI;
 
 /// <summary>
 /// Listens to UpgradeManager snapshots and maps them onto fixed child SlotId components.
@@ -8,16 +9,20 @@ using UnityEngine;
 public class UpgradeManagerUI : MonoBehaviour
 {
     [SerializeField] private UpgradeDetailUI detailUI;
+    [SerializeField] private RectTransform scrollContent;
 
     private readonly Dictionary<UpgradeSlotId, UpgradeSlotBehaviour> slotsById = new();
     private readonly Dictionary<UpgradeSlotId, UpgradeSlotSnapshot> snapshotsBySlot = new();
     private readonly HashSet<UpgradeSlotId> missingSlotWarnings = new();
+    private UpgradeCategoryUI[] categories = System.Array.Empty<UpgradeCategoryUI>();
 
     private UpgradeManager upgradeManager;
     private UpgradeSlotId selectedSlotId;
 
     private void Awake()
     {
+        CacheCategories();
+
         UpgradeSlotBehaviour[] slots = GetComponentsInChildren<UpgradeSlotBehaviour>(true);
         for (int i = 0; i < slots.Length; i++)
         {
@@ -112,7 +117,45 @@ public class UpgradeManagerUI : MonoBehaviour
             }
         }
 
+        RefreshCategoryLayouts();
         RefreshSelectedDetail();
+    }
+
+    private void CacheCategories()
+    {
+        categories = GetComponentsInChildren<UpgradeCategoryUI>(true);
+        for (int i = 0; i < categories.Length; i++)
+            categories[i].Initialize();
+
+        if (scrollContent == null)
+        {
+            ScrollRect scrollRect = GetComponentInChildren<ScrollRect>(true);
+            if (scrollRect != null)
+                scrollContent = scrollRect.content;
+        }
+    }
+
+    private void RefreshCategoryLayouts()
+    {
+        if (categories == null || categories.Length == 0)
+            CacheCategories();
+
+        for (int i = 0; i < categories.Length; i++)
+        {
+            if (categories[i] != null)
+                categories[i].RefreshVisibility();
+        }
+
+        Canvas.ForceUpdateCanvases();
+
+        for (int i = 0; i < categories.Length; i++)
+        {
+            if (categories[i] != null)
+                categories[i].RebuildLayout();
+        }
+
+        if (scrollContent != null)
+            LayoutRebuilder.ForceRebuildLayoutImmediate(scrollContent);
     }
 
     private void SelectSlot(UpgradeSlotId slotId)
