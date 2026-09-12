@@ -37,4 +37,8 @@ public enum Key_ScoreModifierPP
     // Runtime-only: activated by FurnaceHeatManager while the heat pointer is in range.
     // This is intentionally not purchased through UpgradeManager or recorded as player progress.
     FurnaceHeatIncomeMultiplier = 26,
+
+    // Runtime-only: activated by TasteManager only while the player's spice combination
+    // exactly matches the active customer preference. Its formula type remains IncomeMultiplier.
+    TasteIncomeMultiplier = 27,
 }

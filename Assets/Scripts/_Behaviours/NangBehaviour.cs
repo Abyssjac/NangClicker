@@ -39,6 +39,14 @@ public class NangBehaviour : MonoBehaviour
     [SerializeField] private LayerMask raycastLayers = Physics.DefaultRaycastLayers;
     [SerializeField] private QueryTriggerInteraction triggerInteraction = QueryTriggerInteraction.Collide;
 
+    [Header("Taste Clear")]
+    [Tooltip("Holding the right mouse button after first hitting this Nang clears every currently selected spice once.")]
+    [SerializeField, Min(0f)] private float clearSpicesHoldDuration = 0.6f;
+
+    private bool isClearSpiceHoldStartedOnNang;
+    private bool hasClearedSpicesForCurrentHold;
+    private float clearSpicesHoldElapsed;
+
     public Camera InteractionCamera => interactionCamera;
     public Collider HitCollider => hitCollider;
 
@@ -61,10 +69,14 @@ public class NangBehaviour : MonoBehaviour
     private void Update()
     {
         Mouse mouse = Mouse.current;
-        if (mouse == null || !mouse.leftButton.wasPressedThisFrame)
+        if (mouse == null)
             return;
 
-        TryHandlePointerClick(mouse.position.ReadValue());
+        Vector2 pointerPosition = mouse.position.ReadValue();
+        if (mouse.leftButton.wasPressedThisFrame)
+            TryHandlePointerClick(pointerPosition);
+
+        UpdateClearSpicesHold(mouse, pointerPosition);
     }
 
     /// <summary>
@@ -72,17 +84,7 @@ public class NangBehaviour : MonoBehaviour
     /// </summary>
     public bool TryHandlePointerClick(Vector2 pointerPosition)
     {
-        if (interactionCamera == null || hitCollider == null)
-            return false;
-
-        if (!interactionCamera.pixelRect.Contains(pointerPosition))
-            return false;
-
-        Ray ray = interactionCamera.ScreenPointToRay(pointerPosition);
-        if (!Physics.Raycast(ray, out RaycastHit hit, maxRayDistance, raycastLayers, triggerInteraction))
-            return false;
-
-        if (hit.collider != hitCollider)
+        if (!TryGetNangHit(pointerPosition, out RaycastHit hit))
             return false;
 
         ScoreManager manager = ScoreManager.Instance;
@@ -91,6 +93,58 @@ public class NangBehaviour : MonoBehaviour
 
         OnNangPressed?.Invoke(new NangPressInfo(hit.point, hit.normal, manager.ManualNangPerClick));
         return true;
+    }
+
+    private void UpdateClearSpicesHold(Mouse mouse, Vector2 pointerPosition)
+    {
+        if (mouse.rightButton.wasPressedThisFrame)
+        {
+            isClearSpiceHoldStartedOnNang = TryGetNangHit(pointerPosition, out _);
+            hasClearedSpicesForCurrentHold = false;
+            clearSpicesHoldElapsed = 0f;
+            return;
+        }
+
+        if (!isClearSpiceHoldStartedOnNang)
+            return;
+
+        if (mouse.rightButton.wasReleasedThisFrame || !mouse.rightButton.isPressed)
+        {
+            ResetClearSpicesHold();
+            return;
+        }
+
+        if (hasClearedSpicesForCurrentHold)
+            return;
+
+        clearSpicesHoldElapsed += Time.deltaTime;
+        if (clearSpicesHoldElapsed < clearSpicesHoldDuration)
+            return;
+
+        // A hold represents one clear action even if there are no spices to remove.
+        hasClearedSpicesForCurrentHold = true;
+        TasteManager.Instance?.ClearSpice();
+    }
+
+    private bool TryGetNangHit(Vector2 pointerPosition, out RaycastHit hit)
+    {
+        hit = default;
+        if (interactionCamera == null || hitCollider == null)
+            return false;
+
+        if (!interactionCamera.pixelRect.Contains(pointerPosition))
+            return false;
+
+        Ray ray = interactionCamera.ScreenPointToRay(pointerPosition);
+        return Physics.Raycast(ray, out hit, maxRayDistance, raycastLayers, triggerInteraction)
+               && hit.collider == hitCollider;
+    }
+
+    private void ResetClearSpicesHold()
+    {
+        isClearSpiceHoldStartedOnNang = false;
+        hasClearedSpicesForCurrentHold = false;
+        clearSpicesHoldElapsed = 0f;
     }
 
     private void CacheLocalCollider()

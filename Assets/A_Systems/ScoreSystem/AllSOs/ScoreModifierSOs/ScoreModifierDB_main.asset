@@ -39,4 +39,5 @@ MonoBehaviour:
   - {fileID: 11400000, guid: d113d20e51ad4a7eb619ab4aa2eaf6c3, type: 2}
   - {fileID: 11400000, guid: a5e5eeab6ac44cbc86a782f2a4911bbd, type: 2}
   - {fileID: 11400000, guid: 5b109a1fe85360e46be1657929b14aaa, type: 2}
+  - {fileID: 11400000, guid: bebab5e993181004fa239316e1fee1bb, type: 2}
   scanFolder: A_Systems/ScoreSystem/AllSOs/ScoreModifierSOs
