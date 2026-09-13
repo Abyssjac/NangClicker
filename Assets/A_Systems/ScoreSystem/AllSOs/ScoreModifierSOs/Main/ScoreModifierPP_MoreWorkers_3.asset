@@ -13,11 +13,11 @@ MonoBehaviour:
   m_Name: ScoreModifierPP_MoreWorkers_3
   m_EditorClassIdentifier: Assembly-CSharp::ScoreModifierProperty
   enumKey: 22
-  stringKey:
+  stringKey: 
   modifierType: 6
   amount: 2
   defaultDuration: 0
-  upgradePrice: 12000
+  upgradePrice: 70000
   displayName: More Workers IV
   icon: {fileID: 21300000, guid: b4d43a1849a27a14582cd25f870faa92, type: 3}
   description: More hands at the bakery bake naan automatically.

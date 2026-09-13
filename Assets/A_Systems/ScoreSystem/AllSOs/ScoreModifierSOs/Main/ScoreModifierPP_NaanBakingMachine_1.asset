@@ -13,11 +13,12 @@ MonoBehaviour:
   m_Name: ScoreModifierPP_NaanBakingMachine_1
   m_EditorClassIdentifier: Assembly-CSharp::ScoreModifierProperty
   enumKey: 25
-  stringKey:
+  stringKey: 
   modifierType: 6
   amount: 10
   defaultDuration: 0
-  upgradePrice: 50000
+  upgradePrice: 800000
   displayName: Naan Baking Machine II
   icon: {fileID: 21300000, guid: 7c70202eee9342a49bfec99f3b962b5e, type: 3}
-  description: A baking machine handles repetitive work and greatly boosts automated naan production.
+  description: A baking machine handles repetitive work and greatly boosts automated
+    naan production.

@@ -13,12 +13,7 @@ MonoBehaviour:
   m_Name: UpgradeProfilePP_PracticeMakesPerfect
   m_EditorClassIdentifier: Assembly-CSharp::UpgradeProfileProperty
   enumKey: 6
-  stringKey:
-  requiredPeakMoney: 100
-  levelModifiers:
-  - 28
-  - 29
-  - 30
-  - 31
-  - 37
+  stringKey: 
+  requiredTotalMoneyEarned: 2000
+  levelModifiers: 1c0000001d0000001e0000001f00000025000000
   slotId: 6

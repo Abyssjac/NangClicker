@@ -15,7 +15,7 @@ MonoBehaviour:
   enumKey: 11
   stringKey: 
   modifierType: 1
-  amount: 50
+  amount: 5
   defaultDuration: 0
   upgradePrice: 2000
   displayName: Brand-New Rolling Pin V

@@ -15,7 +15,7 @@ MonoBehaviour:
   enumKey: 17
   stringKey: 
   modifierType: 3
-  amount: 1000
+  amount: 50
   defaultDuration: 0
   upgradePrice: 30000
   displayName: Big, Big, Big Naan I

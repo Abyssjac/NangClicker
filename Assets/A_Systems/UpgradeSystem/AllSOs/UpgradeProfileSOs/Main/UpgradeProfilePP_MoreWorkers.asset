@@ -13,12 +13,7 @@ MonoBehaviour:
   m_Name: UpgradeProfilePP_MoreWorkers
   m_EditorClassIdentifier: Assembly-CSharp::UpgradeProfileProperty
   enumKey: 4
-  stringKey:
-  requiredPeakMoney: 1000
-  levelModifiers:
-  - 19
-  - 20
-  - 21
-  - 22
-  - 23
+  stringKey: 
+  requiredTotalMoneyEarned: 500
+  levelModifiers: 1300000014000000150000001600000017000000
   slotId: 4

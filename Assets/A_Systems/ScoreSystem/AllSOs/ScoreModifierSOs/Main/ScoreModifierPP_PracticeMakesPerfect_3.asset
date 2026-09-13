@@ -13,11 +13,11 @@ MonoBehaviour:
   m_Name: ScoreModifierPP_PracticeMakesPerfect_3
   m_EditorClassIdentifier: Assembly-CSharp::ScoreModifierProperty
   enumKey: 31
-  stringKey:
+  stringKey: 
   modifierType: 7
   amount: 800
   defaultDuration: 0
-  upgradePrice: 8000
+  upgradePrice: 5000000
   displayName: Practice Makes Perfect IV
   icon: {fileID: 21300000, guid: 0c286a668b639704f8040a1a586e991a, type: 3}
   description: Day after day of practice improves your naan-making speed.

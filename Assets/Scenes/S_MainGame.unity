@@ -4857,7 +4857,7 @@ MonoBehaviour:
   multiplierText: {fileID: 124571804}
   multiplierPulseScaleAmount: 0.06
   multiplierPulseCyclesPerSecond: 1.1
-  rollDuration: 2
+  rollDuration: 0.75
   incomeMaskLeadDuration: 0.12
   digitSpinInterval: 0.05
 --- !u!1 &629934117
@@ -11421,7 +11421,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::FeatureUnlockManager
   featureUnlocks:
   - featureId: 1
-    requiredTotalNang: 500
+    requiredTotalNang: 100
     unlockTarget: {fileID: 1763350488}
     visualRoot: {fileID: 2048451572}
   - featureId: 2
