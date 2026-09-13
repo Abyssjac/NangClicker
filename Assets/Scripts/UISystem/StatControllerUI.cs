@@ -1,3 +1,5 @@
+using System;
+using System.Collections;
 using System.Globalization;
 using TMPro;
 using UnityEngine;
@@ -9,14 +11,12 @@ using UnityEngine;
 public class StatControllerUI : MonoBehaviour
 {
     [Header("Text References")]
-    [SerializeField] private TextMeshProUGUI nangAmountText;
     [SerializeField] private TextMeshProUGUI moneyText;
-    [SerializeField] private TextMeshProUGUI nangPerSecondText;
-
-    [Header("Labels")]
-    [SerializeField] private string nangAmountLabel = "Nang: ";
-    [SerializeField] private string moneyLabel = "Money: ";
-    [SerializeField] private string nangPerSecondLabel = "Nang / Sec: ";
+    [SerializeField] private TextMeshProUGUI incomePerSecondText;
+    [SerializeField] private TextMeshProUGUI nangAmountText;
+    [SerializeField] private TextMeshProUGUI unitPriceText;
+    [SerializeField] private TextMeshProUGUI autoNangPerSecondText;
+    [SerializeField] private HUDStatRollAnimator statRollAnimator;
 
     private ScoreManager scoreManager;
 
@@ -24,6 +24,7 @@ public class StatControllerUI : MonoBehaviour
     {
         TryResolveScoreManager();
         Refresh();
+        StartCoroutine(RefreshAfterScoreManagerInitialization());
     }
 
     private void Update()
@@ -45,14 +46,32 @@ public class StatControllerUI : MonoBehaviour
         if (!TryResolveScoreManager())
             return;
 
-        if (nangAmountText != null)
-            nangAmountText.text = nangAmountLabel + FormatValue(scoreManager.NangAmt);
-
         if (moneyText != null)
-            moneyText.text = moneyLabel + FormatValue(scoreManager.Money);
+            moneyText.text = FormatValue(scoreManager.Money);
 
-        if (nangPerSecondText != null)
-            nangPerSecondText.text = nangPerSecondLabel + FormatValue(GetDisplayedNangPerSecond());
+        if (nangAmountText != null)
+            nangAmountText.text = FormatValue(scoreManager.NangAmt);
+
+        string unitPrice = FormatValue(scoreManager.UnitSalePrice);
+        string autoNangPerSecond = FormatValue(scoreManager.FinalAutoNangPerSec) + "/s";
+        string incomePerSecond = FormatValue(scoreManager.IncomePerSecond) + "/s";
+
+        if (statRollAnimator != null)
+        {
+            statRollAnimator.ApplyValues(unitPrice, autoNangPerSecond, incomePerSecond);
+            return;
+        }
+
+        // Keep a direct-display fallback so an intentionally animation-free HUD still works if
+        // this presentation component is removed from a different scene.
+        if (incomePerSecondText != null)
+            incomePerSecondText.text = incomePerSecond;
+
+        if (unitPriceText != null)
+            unitPriceText.text = unitPrice;
+
+        if (autoNangPerSecondText != null)
+            autoNangPerSecondText.text = autoNangPerSecond;
     }
 
     private bool TryResolveScoreManager()
@@ -76,34 +95,31 @@ public class StatControllerUI : MonoBehaviour
         scoreManager = null;
     }
 
-    private double GetDisplayedNangPerSecond()
+    private IEnumerator RefreshAfterScoreManagerInitialization()
     {
-        // Manual clicks are settled together with automatic production at the end of a tick.
-        // After the first non-zero settlement, this is the actual Nang produced per second,
-        // including the clicks performed in that production interval.
-        if (scoreManager.LastTickTotalNang > 0d)
-            return scoreManager.LastTickTotalNang / scoreManager.ProductionTickInterval;
-
-        // Before the first settlement, show the effective automatic rate rather than an empty zero.
-        return scoreManager.FinalAutoNangPerSec;
+        // ScoreManager calculates its initial modifier state during Start. Refresh once more on
+        // the next frame so this display is correct regardless of script execution order.
+        yield return null;
+        Refresh();
     }
 
     private static string FormatValue(double value)
     {
-        const double Thousand = 1_000d;
+        if (double.IsNaN(value) || double.IsInfinity(value))
+            return "\u2014";
+
+        double magnitude = Math.Abs(value);
         const double Million = 1_000_000d;
         const double Billion = 1_000_000_000d;
         const double Trillion = 1_000_000_000_000d;
 
-        if (value >= Trillion)
+        if (magnitude >= Trillion)
             return (value / Trillion).ToString("0.##", CultureInfo.InvariantCulture) + "T";
-        if (value >= Billion)
+        if (magnitude >= Billion)
             return (value / Billion).ToString("0.##", CultureInfo.InvariantCulture) + "B";
-        if (value >= Million)
+        if (magnitude >= Million)
             return (value / Million).ToString("0.##", CultureInfo.InvariantCulture) + "M";
-        if (value >= Thousand)
-            return (value / Thousand).ToString("0.##", CultureInfo.InvariantCulture) + "K";
 
-        return value.ToString(value >= 100d ? "0" : "0.##", CultureInfo.InvariantCulture);
+        return value.ToString(magnitude >= 100d ? "N0" : "0.##", CultureInfo.InvariantCulture);
     }
 }
