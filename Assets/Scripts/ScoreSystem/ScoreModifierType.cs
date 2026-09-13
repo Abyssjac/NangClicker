@@ -19,4 +19,11 @@ public enum ScoreModifierType
 
     // Adds a direct +X Nang / Sec to automatic production. The neutral value is 0.
     AutoNangAdditiveAmt = 6,
+
+    // Adds a direct +X Nang to one manual press. The neutral value is 0.
+    ManualNangAdditiveAmt = 7,
+
+    // Adds a direct amount to the profitable furnace range's lower bound. The neutral value is 0.
+    // Upgrade data normally uses negative values so the profitable range expands downward.
+    FurnaceRangeAdditiveAmt = 8,
 }

@@ -41,4 +41,15 @@ public enum Key_ScoreModifierPP
     // Runtime-only: activated by TasteManager only while the player's spice combination
     // exactly matches the active customer preference. Its formula type remains IncomeMultiplier.
     TasteIncomeMultiplier = 27,
+
+    PracticeMakesPerfect_0 = 28,
+    PracticeMakesPerfect_1 = 29,
+    PracticeMakesPerfect_2 = 30,
+    PracticeMakesPerfect_3 = 31,
+
+    FurnaceMastery_0 = 32,
+    FurnaceMastery_1 = 33,
+    FurnaceMastery_2 = 34,
+    FurnaceMastery_3 = 35,
+    FurnaceMastery_4 = 36,
 }

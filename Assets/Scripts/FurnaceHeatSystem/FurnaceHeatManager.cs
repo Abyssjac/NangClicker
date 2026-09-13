@@ -36,6 +36,7 @@ public sealed class FurnaceHeatManager : MonoBehaviour
     private bool isUnlocked;
     private bool isCalibrating;
     private ScoreManager modifierTarget;
+    private ScoreManager rangeModifierSource;
     private bool modifierAppliedToTarget;
     private bool appliedModifierState;
 
@@ -44,7 +45,13 @@ public sealed class FurnaceHeatManager : MonoBehaviour
 
     public float CurrentHeat => currentHeat;
     public float NormalizedHeat => currentHeat / 100f;
-    public float ProfitableHeatMin => Mathf.Min(profitableHeatMin, profitableHeatMax);
+    /// <summary>
+    /// Reads the authoritative, modifier-adjusted lower bound from ScoreManager whenever it exists.
+    /// The serialized range remains a no-ScoreManager fallback for isolated prefab/editor use.
+    /// </summary>
+    public float ProfitableHeatMin => ScoreManager.Instance != null
+        ? ScoreManager.Instance.FinalFurnaceProfitableHeatMin
+        : Mathf.Min(profitableHeatMin, profitableHeatMax);
     public float ProfitableHeatMax => Mathf.Max(profitableHeatMin, profitableHeatMax);
     public float SecondsPerHeatPoint => Mathf.Max(MinimumSecondsPerPoint, secondsPerHeatPoint);
     public float PingPongSpeed => Mathf.Max(0f, pingPongSpeed);
@@ -68,17 +75,21 @@ public sealed class FurnaceHeatManager : MonoBehaviour
 
     private void Start()
     {
+        ResolveRangeModifierSource();
         SynchronizeRuntimeModifier();
         OnHeatStateChanged?.Invoke();
     }
 
     private void OnDisable()
     {
+        RemoveRangeModifierSubscription();
         RemoveRuntimeModifierFromPreviousTarget();
     }
 
     private void OnDestroy()
     {
+        RemoveRangeModifierSubscription();
+
         if (Instance == this)
             Instance = null;
     }
@@ -94,6 +105,8 @@ public sealed class FurnaceHeatManager : MonoBehaviour
 
     private void Update()
     {
+        ResolveRangeModifierSource();
+
         ScoreManager scoreManager = ScoreManager.Instance;
         if (scoreManager != null && scoreManager.IsSimulationPaused)
             return;
@@ -209,6 +222,33 @@ public sealed class FurnaceHeatManager : MonoBehaviour
 
         modifierAppliedToTarget = true;
         appliedModifierState = shouldBeActive;
+    }
+
+    private void ResolveRangeModifierSource()
+    {
+        ScoreManager candidate = ScoreManager.Instance;
+        if (rangeModifierSource == candidate)
+            return;
+
+        RemoveRangeModifierSubscription();
+        rangeModifierSource = candidate;
+
+        if (rangeModifierSource != null)
+            rangeModifierSource.OnModifiersChanged += HandleScoreModifiersChanged;
+    }
+
+    private void RemoveRangeModifierSubscription()
+    {
+        if (rangeModifierSource != null)
+            rangeModifierSource.OnModifiersChanged -= HandleScoreModifiersChanged;
+
+        rangeModifierSource = null;
+    }
+
+    private void HandleScoreModifiersChanged()
+    {
+        SynchronizeRuntimeModifier();
+        OnHeatStateChanged?.Invoke();
     }
 
     private void RemoveRuntimeModifierFromPreviousTarget()

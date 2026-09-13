@@ -7,4 +7,6 @@ public enum UpgradeSlotId
     BigNaan = 3,
     MoreWorkers = 4,
     NaanBakingMachine = 5,
+    PracticeMakesPerfect = 6,
+    FurnaceMastery = 7,
 }

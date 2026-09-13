@@ -33,6 +33,10 @@ public class ScoreManager : MonoBehaviour
     [Tooltip("The Nang amount queued by one manual click.")]
     [SerializeField, Min(0f)] private double manualNangPerClick = 1d;
 
+    [Header("Furnace")]
+    [Tooltip("The lower bound of the profitable furnace heat range before permanent upgrades.")]
+    [SerializeField, Range(0f, 100f)] private float baseFurnaceProfitableHeatMin = 90f;
+
     [Header("Debug")]
     [SerializeField] private bool isSimulationPaused;
 
@@ -63,7 +67,18 @@ public class ScoreManager : MonoBehaviour
     public float ProductionTickInterval => Mathf.Max(MinimumProductionTickInterval, productionTickInterval);
     public float ProductionTickElapsed => productionTickTimer;
     public float TimeUntilNextProductionTick => Mathf.Max(0f, ProductionTickInterval - productionTickTimer);
-    public double ManualNangPerClick => manualNangPerClick;
+    /// <summary>The unmodified Nang amount configured for one manual press.</summary>
+    public double BaseManualNangPerClick => manualNangPerClick;
+    /// <summary>The final Nang amount produced by one manual press after permanent modifiers.</summary>
+    public double ManualNangPerClick => FinalManualNangPerClick;
+    public double ManualNangAdditiveBonus { get; private set; }
+    public double FinalManualNangPerClick => Math.Max(0d, manualNangPerClick + ManualNangAdditiveBonus);
+    public float BaseFurnaceProfitableHeatMin => baseFurnaceProfitableHeatMin;
+    public double FurnaceRangeAdditiveBonus { get; private set; }
+    public float FinalFurnaceProfitableHeatMin => Mathf.Clamp(
+        baseFurnaceProfitableHeatMin + (float)FurnaceRangeAdditiveBonus,
+        0f,
+        100f);
     public double PendingManualNang => pendingManualNang;
     public double LastTickAutomaticNang => lastTickAutomaticNang;
     public double LastTickManualNang => lastTickManualNang;
@@ -266,7 +281,7 @@ public class ScoreManager : MonoBehaviour
     /// </summary>
     public bool QueueManualNangClick()
     {
-        return QueueManualNangProduction(manualNangPerClick);
+        return QueueManualNangProduction(FinalManualNangPerClick);
     }
 
     /// <summary>
@@ -436,6 +451,8 @@ public class ScoreManager : MonoBehaviour
         IncomeAdditiveRate = 0d;
         IncomeMultiplier = 1d;
         AutoNangAdditiveBonus = 0d;
+        ManualNangAdditiveBonus = 0d;
+        FurnaceRangeAdditiveBonus = 0d;
 
         if (ResolveDatabase())
         {
@@ -484,6 +501,12 @@ public class ScoreManager : MonoBehaviour
             case ScoreModifierType.AutoNangAdditiveAmt:
                 AutoNangAdditiveBonus += property.Amount;
                 break;
+            case ScoreModifierType.ManualNangAdditiveAmt:
+                ManualNangAdditiveBonus += property.Amount;
+                break;
+            case ScoreModifierType.FurnaceRangeAdditiveAmt:
+                FurnaceRangeAdditiveBonus += property.Amount;
+                break;
         }
     }
 
@@ -512,6 +535,18 @@ public class ScoreManager : MonoBehaviour
         if (isMultiplier && amount <= 0d)
         {
             Debug.LogError($"[{nameof(ScoreManager)}] Multiplier modifiers must be greater than zero.", this);
+            return false;
+        }
+
+        if (modifierType == ScoreModifierType.ManualNangAdditiveAmt && amount <= 0d)
+        {
+            Debug.LogError($"[{nameof(ScoreManager)}] Manual Nang additive modifiers must be greater than zero.", this);
+            return false;
+        }
+
+        if (modifierType == ScoreModifierType.FurnaceRangeAdditiveAmt && amount > 0d)
+        {
+            Debug.LogError($"[{nameof(ScoreManager)}] Furnace range additive modifiers must be zero or negative.", this);
             return false;
         }
 

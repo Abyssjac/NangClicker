@@ -18,4 +18,6 @@ MonoBehaviour:
   - {fileID: 11400000, guid: 78b3a29dd8ed4b358d8bdcaed7931c4d, type: 2}
   - {fileID: 11400000, guid: cd37c59d6dd34d6a83cb85fa1696417c, type: 2}
   - {fileID: 11400000, guid: acb0a13924484a3ca9257781d7f30aff, type: 2}
+  - {fileID: 11400000, guid: e842b41d0b374d6eb79bdb57d39b105b, type: 2}
+  - {fileID: 11400000, guid: c31dd71717544d7e8fadd4ab17a3e2b8, type: 2}
   scanFolder: A_Systems/UpgradeSystem/AllSOs/UpgradeProfileSOs
