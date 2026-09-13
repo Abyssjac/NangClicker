@@ -17,7 +17,7 @@ MonoBehaviour:
   modifierType: 6
   amount: 10
   defaultDuration: 0
-  upgradePrice: 10000
+  upgradePrice: 50000
   displayName: Naan Baking Machine II
   icon: {fileID: 21300000, guid: 7c70202eee9342a49bfec99f3b962b5e, type: 3}
   description: A baking machine handles repetitive work and greatly boosts automated naan production.

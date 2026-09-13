@@ -15,9 +15,9 @@ MonoBehaviour:
   enumKey: 34
   stringKey:
   modifierType: 8
-  amount: -10
+  amount: -15
   defaultDuration: 0
-  upgradePrice: 3000
+  upgradePrice: 5000
   displayName: Furnace Mastery++ III
   icon: {fileID: 21300000, guid: 6affdd0cd5b412d4a8147a9cbba88f3b, type: 3}
   description: Perfect furnace control expands the profitable heat range.

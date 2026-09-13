@@ -15,9 +15,9 @@ MonoBehaviour:
   enumKey: 11
   stringKey: 
   modifierType: 1
-  amount: 0.5
+  amount: 50
   defaultDuration: 0
-  upgradePrice: 480
+  upgradePrice: 2000
   displayName: Brand-New Rolling Pin V
   icon: {fileID: 21300000, guid: 9030dcdf8ca68344a801cfc059184fb1, type: 3}
   description: The dough becomes chewier, and customers like it more.

@@ -15,9 +15,9 @@ MonoBehaviour:
   enumKey: 15
   stringKey: 
   modifierType: 2
-  amount: 1.1
+  amount: 3
   defaultDuration: 0
-  upgradePrice: 800
+  upgradePrice: 300
   displayName: Learning Tricks from the Master IV
   icon: {fileID: 21300000, guid: 75fcd7e38058fce4fb1aff1f3d2e458a, type: 3}
   description: You've learned more tricks from the master, and your skills have improved.

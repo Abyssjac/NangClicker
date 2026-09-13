@@ -14,7 +14,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::UpgradeProfileProperty
   enumKey: 2
   stringKey: MasterSkill
-  requiredPeakMoney: 1000
+  requiredPeakMoney: 100
   levelModifiers:
   - 12
   - 13

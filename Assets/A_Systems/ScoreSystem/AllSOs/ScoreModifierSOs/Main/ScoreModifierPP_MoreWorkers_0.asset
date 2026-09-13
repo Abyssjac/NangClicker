@@ -17,7 +17,7 @@ MonoBehaviour:
   modifierType: 6
   amount: 2
   defaultDuration: 0
-  upgradePrice: 100
+  upgradePrice: 1500
   displayName: More Workers I
   icon: {fileID: 21300000, guid: 7f9017dc3531ea049816d528ca8f7874, type: 3}
   description: More hands at the bakery bake naan automatically.

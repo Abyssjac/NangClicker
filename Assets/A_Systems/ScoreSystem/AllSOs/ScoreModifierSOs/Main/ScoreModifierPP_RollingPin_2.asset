@@ -15,7 +15,7 @@ MonoBehaviour:
   enumKey: 9
   stringKey: 
   modifierType: 1
-  amount: 0.5
+  amount: 3
   defaultDuration: 0
   upgradePrice: 200
   displayName: Brand-New Rolling Pin III

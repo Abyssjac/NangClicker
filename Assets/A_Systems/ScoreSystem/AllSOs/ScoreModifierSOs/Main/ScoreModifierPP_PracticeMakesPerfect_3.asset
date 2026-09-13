@@ -15,9 +15,9 @@ MonoBehaviour:
   enumKey: 31
   stringKey:
   modifierType: 7
-  amount: 5
+  amount: 800
   defaultDuration: 0
-  upgradePrice: 10000
+  upgradePrice: 8000
   displayName: Practice Makes Perfect IV
   icon: {fileID: 21300000, guid: 0c286a668b639704f8040a1a586e991a, type: 3}
   description: Day after day of practice improves your naan-making speed.

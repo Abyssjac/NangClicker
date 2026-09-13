@@ -14,6 +14,6 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::UpgradeProfileProperty
   enumKey: 3
   stringKey: BigNaan
-  requiredPeakMoney: 2000
+  requiredPeakMoney: 5000
   levelModifiers: 1100000012000000
   slotId: 3

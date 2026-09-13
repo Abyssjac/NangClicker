@@ -14,10 +14,11 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::UpgradeProfileProperty
   enumKey: 6
   stringKey:
-  requiredPeakMoney: 1000
+  requiredPeakMoney: 100
   levelModifiers:
   - 28
   - 29
   - 30
   - 31
+  - 37
   slotId: 6

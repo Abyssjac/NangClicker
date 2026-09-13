@@ -52,4 +52,6 @@ public enum Key_ScoreModifierPP
     FurnaceMastery_2 = 34,
     FurnaceMastery_3 = 35,
     FurnaceMastery_4 = 36,
+
+    PracticeMakesPerfect_4 = 37,
 }
