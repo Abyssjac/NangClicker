@@ -51,6 +51,7 @@ public class ScoreManagerDebugWindow : DebugEditorWindow<ScoreManager>
     {
         Header("Authoritative State");
         Row("Money", Format(manager.Money));
+        Row("Total Money Earned", Format(manager.TotalMoneyEarned));
         Row("Nang Amt", Format(manager.NangAmt));
         Row("Base Unit Sale Price", Format(manager.BaseUnitSalePrice));
         Row("Base Auto Nang / Sec", Format(manager.NangPerSecond));
@@ -88,7 +89,7 @@ public class ScoreManagerDebugWindow : DebugEditorWindow<ScoreManager>
     {
         Header("Add Score Values");
         EditorGUILayout.HelpBox(
-            "These controls add positive amounts only. Final Auto Nang / Sec remains formula-derived and cannot be edited directly.",
+            "These controls add positive amounts only. Add Money also counts as Total Money Earned so upgrade unlocks can be tested. Final Auto Nang / Sec remains formula-derived and cannot be edited directly.",
             MessageType.Info);
 
         moneyToAdd = EditorGUILayout.DoubleField("Money To Add", moneyToAdd);

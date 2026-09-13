@@ -9,12 +9,14 @@ using UnityEngine;
 /// </summary>
 [DefaultExecutionOrder(-100)]
 [DisallowMultipleComponent]
-public sealed class TasteManager : MonoBehaviour
+public sealed class TasteManager : MonoBehaviour, IFeatureUnlockable
 {
     public static TasteManager Instance { get; private set; }
 
     [Header("Initial Availability")]
-    [Tooltip("All four spices are unlocked for this first implementation. Future unlock systems can change this list at runtime.")]
+    [Tooltip("Whether the Taste feature begins unlocked. FeatureUnlockManager normally enables this after its Total Naan milestone.")]
+    [SerializeField] private bool startsUnlocked = true;
+    [Tooltip("Spices made available when the Taste feature itself is unlocked.")]
     [SerializeField] private List<SpiceType> initiallyUnlockedSpices = new()
     {
         SpiceType.Sesame,
@@ -31,6 +33,7 @@ public sealed class TasteManager : MonoBehaviour
     private readonly List<SpiceType> currentSpices = new();
     private readonly List<SpiceType> currentPreference = new();
 
+    private bool isUnlocked;
     private ScoreManager modifierTarget;
     private bool modifierAppliedToTarget;
     private bool appliedModifierState;
@@ -48,7 +51,8 @@ public sealed class TasteManager : MonoBehaviour
     public IReadOnlyList<SpiceType> CurrentSpices => currentSpices;
     public IReadOnlyList<SpiceType> CurrentPreference => currentPreference;
     public Key_ScoreModifierPP IncomeMultiplierModifierId => incomeMultiplierModifierId;
-    public bool IsExactTasteMatch => IsExactMatch(currentSpices, currentPreference);
+    public bool IsUnlocked => isUnlocked;
+    public bool IsExactTasteMatch => isUnlocked && IsExactMatch(currentSpices, currentPreference);
     public bool IsIncomeMultiplierActive => modifierAppliedToTarget && appliedModifierState;
 
     private void Awake()
@@ -60,7 +64,11 @@ public sealed class TasteManager : MonoBehaviour
         }
 
         Instance = this;
-        InitializeUnlockedSpices();
+        isUnlocked = startsUnlocked;
+        if (isUnlocked)
+            InitializeUnlockedSpices();
+        else
+            unlockedSpices.Clear();
         currentSpices.Clear();
         currentPreference.Clear();
     }
@@ -136,7 +144,7 @@ public sealed class TasteManager : MonoBehaviour
     /// </summary>
     public bool RefreshPreference()
     {
-        if (unlockedSpices.Count == 0)
+        if (!isUnlocked || unlockedSpices.Count == 0)
             return false;
 
         List<SpiceType> shuffledSpices = new(unlockedSpices);
@@ -157,7 +165,7 @@ public sealed class TasteManager : MonoBehaviour
     /// </summary>
     public bool SetPreference(IReadOnlyList<SpiceType> spices)
     {
-        if (spices == null)
+        if (!isUnlocked || spices == null)
             return false;
 
         List<SpiceType> sanitized = new();
@@ -181,7 +189,37 @@ public sealed class TasteManager : MonoBehaviour
 
     public bool IsSpiceUnlocked(SpiceType spice)
     {
-        return IsValidSpice(spice) && unlockedSpices.Contains(spice);
+        return isUnlocked && IsValidSpice(spice) && unlockedSpices.Contains(spice);
+    }
+
+    /// <summary>
+    /// Enables or disables the whole Taste feature. Locking removes any active multiplier and
+    /// clears transient player/preference selections; permanently unlocked gameplay only calls true.
+    /// </summary>
+    public void SetUnlocked(bool unlocked)
+    {
+        if (isUnlocked == unlocked)
+            return;
+
+        bool wasMatch = IsExactTasteMatch;
+        isUnlocked = unlocked;
+
+        if (isUnlocked)
+        {
+            InitializeUnlockedSpices();
+        }
+        else
+        {
+            unlockedSpices.Clear();
+            currentSpices.Clear();
+            currentPreference.Clear();
+            OnCurrentSpicesChanged?.Invoke(CurrentSpices);
+            OnPreferenceChanged?.Invoke(CurrentPreference);
+        }
+
+        SynchronizeRuntimeModifier();
+        if (wasMatch != IsExactTasteMatch)
+            OnTasteMatchChanged?.Invoke(IsExactTasteMatch);
     }
 
     private void InitializeUnlockedSpices()

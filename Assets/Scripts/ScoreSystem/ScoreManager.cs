@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using JackyUtility;
 using UnityEngine;
+using UnityEngine.Serialization;
 
 public class ScoreManager : MonoBehaviour
 {
@@ -23,8 +24,9 @@ public class ScoreManager : MonoBehaviour
     [SerializeField, Min(0f)] private double baseUnitSalePrice = 1d;
     [SerializeField, Min(0f)] private double nangPerSecond = 1d;
     [SerializeField, Min(0f)] private double money;
-    [Tooltip("The largest Money value reached during this run. Spending never lowers this value.")]
-    [SerializeField, Min(0f)] private double highestMoneyReached;
+    [Tooltip("All money credited as earned income during this run. Spending and refunds do not lower or increase this value.")]
+    [FormerlySerializedAs("highestMoneyReached")]
+    [SerializeField, Min(0f)] private double totalMoneyEarned;
     [SerializeField, Min(0f)] private double nangAmt;
 
     [Header("Production Tick")]
@@ -61,7 +63,7 @@ public class ScoreManager : MonoBehaviour
     public double BaseUnitSalePrice => baseUnitSalePrice;
     public double NangPerSecond => nangPerSecond;
     public double Money => money;
-    public double HighestMoneyReached => highestMoneyReached;
+    public double TotalMoneyEarned => totalMoneyEarned;
     public double NangAmt => nangAmt;
     public bool IsSimulationPaused => isSimulationPaused;
     public float ProductionTickInterval => Mathf.Max(MinimumProductionTickInterval, productionTickInterval);
@@ -124,7 +126,9 @@ public class ScoreManager : MonoBehaviour
         }
 
         Instance = this;
-        highestMoneyReached = Math.Max(highestMoneyReached, money);
+        // Existing scene data previously stored a peak-wallet value. It becomes the best
+        // available migration baseline for the new cumulative-earned metric.
+        totalMoneyEarned = Math.Max(totalMoneyEarned, money);
     }
 
     private void Start()
@@ -252,6 +256,10 @@ public class ScoreManager : MonoBehaviour
         return true;
     }
 
+    /// <summary>
+    /// Credits earned money. This is deliberately used by the debug window as well, so test
+    /// money follows the same total-earned unlock rules as normal sales income.
+    /// </summary>
     public void AddMoney(double amount)
     {
         if (!IsFinite(amount) || amount <= 0d)
@@ -260,8 +268,23 @@ public class ScoreManager : MonoBehaviour
             return;
         }
 
-        money += amount;
-        UpdateHighestMoneyReached();
+        CreditMoney(amount, countAsEarned: true);
+        OnScoreChanged?.Invoke();
+    }
+
+    /// <summary>
+    /// Restores already-spent wallet money without treating the restoration as new earnings.
+    /// UpgradeManager uses this only for its defensive failed-purchase refund path.
+    /// </summary>
+    public void RefundMoney(double amount)
+    {
+        if (!IsFinite(amount) || amount <= 0d)
+        {
+            Debug.LogError($"[{nameof(ScoreManager)}] Refund amounts must be finite and greater than zero.", this);
+            return;
+        }
+
+        CreditMoney(amount, countAsEarned: false);
         OnScoreChanged?.Invoke();
     }
 
@@ -435,8 +458,7 @@ public class ScoreManager : MonoBehaviour
         if (lastTickTotalNang != 0d)
         {
             nangAmt += lastTickTotalNang;
-            money += lastTickIncome;
-            UpdateHighestMoneyReached();
+            CreditMoney(lastTickIncome, countAsEarned: true);
             OnScoreChanged?.Invoke();
         }
 
@@ -553,10 +575,11 @@ public class ScoreManager : MonoBehaviour
         return true;
     }
 
-    private void UpdateHighestMoneyReached()
+    private void CreditMoney(double amount, bool countAsEarned)
     {
-        if (money > highestMoneyReached)
-            highestMoneyReached = money;
+        money += amount;
+        if (countAsEarned && amount > 0d)
+            totalMoneyEarned += amount;
     }
 
     private static bool IsFinite(double value)

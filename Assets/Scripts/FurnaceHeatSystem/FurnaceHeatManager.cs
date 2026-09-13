@@ -7,7 +7,7 @@ using UnityEngine;
 /// </summary>
 [DefaultExecutionOrder(-100)]
 [DisallowMultipleComponent]
-public sealed class FurnaceHeatManager : MonoBehaviour
+public sealed class FurnaceHeatManager : MonoBehaviour, IFeatureUnlockable
 {
     private const float MinimumSecondsPerPoint = 0.001f;
 

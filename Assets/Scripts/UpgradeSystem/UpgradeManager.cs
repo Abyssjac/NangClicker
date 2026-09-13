@@ -101,7 +101,7 @@ public class UpgradeManager : MonoBehaviour
         if (!scoreManager.TweakScore(modifierId))
         {
             // The property was validated above. A refund still protects money if a future ScoreManager rule rejects it.
-            scoreManager.AddMoney(price);
+            scoreManager.RefundMoney(price);
             ReportProblemOnce(
                 $"apply-{profileId}-{currentLevel}",
                 $"[{nameof(UpgradeManager)}] ScoreManager rejected purchased modifier '{modifierId}'; money was refunded.");
@@ -169,11 +169,11 @@ public class UpgradeManager : MonoBehaviour
             return false;
         }
 
-        if (!IsFinite(profile.RequiredPeakMoney) || profile.RequiredPeakMoney < 0d)
+        if (!IsFinite(profile.RequiredTotalMoneyEarned) || profile.RequiredTotalMoneyEarned < 0d)
         {
             ReportProblemOnce(
                 $"threshold-{profile.name}",
-                $"[{nameof(UpgradeManager)}] Upgrade Profile '{profile.name}' has an invalid Required Peak Money value.");
+                $"[{nameof(UpgradeManager)}] Upgrade Profile '{profile.name}' has an invalid Required Total Money Earned value.");
             return false;
         }
 
@@ -195,11 +195,11 @@ public class UpgradeManager : MonoBehaviour
             return false;
 
         bool unlockedAny = false;
-        double highestMoneyReached = scoreManager.HighestMoneyReached;
+        double totalMoneyEarned = scoreManager.TotalMoneyEarned;
 
         // Ordered thresholds make this a single forward pass. `while` deliberately unlocks every crossed threshold.
         while (nextUnlockIndex < orderedProfiles.Count
-               && highestMoneyReached >= orderedProfiles[nextUnlockIndex].RequiredPeakMoney)
+               && totalMoneyEarned >= orderedProfiles[nextUnlockIndex].RequiredTotalMoneyEarned)
         {
             UpgradeProfileProperty profile = orderedProfiles[nextUnlockIndex++];
             unlockedAny |= unlockedProfileIds.Add(profile.EnumKey);
@@ -273,7 +273,7 @@ public class UpgradeManager : MonoBehaviour
 
     private static int CompareProfilesByUnlockOrder(UpgradeProfileProperty left, UpgradeProfileProperty right)
     {
-        int byThreshold = left.RequiredPeakMoney.CompareTo(right.RequiredPeakMoney);
+        int byThreshold = left.RequiredTotalMoneyEarned.CompareTo(right.RequiredTotalMoneyEarned);
         return byThreshold != 0
             ? byThreshold
             : Comparer<Key_UpgradeProfilePP>.Default.Compare(left.EnumKey, right.EnumKey);

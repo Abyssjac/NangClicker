@@ -1,4 +1,6 @@
 using System.Collections;
+using System;
+using System.Globalization;
 using TMPro;
 using UnityEngine;
 
@@ -14,6 +16,13 @@ public sealed class HUDStatRollAnimator : MonoBehaviour
     [SerializeField] private TextMeshProUGUI autoNangPerSecondText;
     [SerializeField] private TextMeshProUGUI incomePerSecondText;
 
+    [Header("Income Multiplier Card")]
+    [SerializeField] private GameObject multiplierCard;
+    [SerializeField] private RectTransform multiplierCardTransform;
+    [SerializeField] private TextMeshProUGUI multiplierText;
+    [SerializeField, Range(0f, 0.3f)] private float multiplierPulseScaleAmount = 0.06f;
+    [SerializeField, Min(0f)] private float multiplierPulseCyclesPerSecond = 1.1f;
+
     [Header("Rolling Animation")]
     [Tooltip("Total time for the changed primary value(s) to resolve from right to left.")]
     [SerializeField, Min(0.05f)] private float rollDuration = 2f;
@@ -27,16 +36,39 @@ public sealed class HUDStatRollAnimator : MonoBehaviour
     private string lastUnitPrice = string.Empty;
     private string lastAutoNangPerSecond = string.Empty;
     private string lastIncomePerSecond = string.Empty;
+    private Vector3 multiplierBaseScale = Vector3.one;
+    private bool hasMultiplierBaseScale;
+    private bool isMultiplierVisible;
+
+    private void Awake()
+    {
+        CacheMultiplierBaseScale();
+    }
+
+    private void Update()
+    {
+        if (!isMultiplierVisible || multiplierCardTransform == null)
+            return;
+
+        float pulse = 1f + (Mathf.Sin(Time.unscaledTime * multiplierPulseCyclesPerSecond * Mathf.PI * 2f)
+                            * multiplierPulseScaleAmount);
+        multiplierCardTransform.localScale = multiplierBaseScale * pulse;
+    }
 
     /// <summary>
     /// Applies already-formatted HUD text. Initial values are shown immediately. Later Unit Price
     /// and Auto Nang / Sec changes restart the effect immediately with the newest values.
     /// </summary>
-    public void ApplyValues(string unitPrice, string autoNangPerSecond, string incomePerSecond)
+    public void ApplyValues(
+        string unitPrice,
+        string autoNangPerSecond,
+        string incomePerSecond,
+        double incomeMultiplier)
     {
         unitPrice ??= string.Empty;
         autoNangPerSecond ??= string.Empty;
         incomePerSecond ??= string.Empty;
+        UpdateMultiplierCard(incomeMultiplier);
 
         if (!isInitialized)
         {
@@ -73,6 +105,7 @@ public sealed class HUDStatRollAnimator : MonoBehaviour
         animationVersion++;
         StopAllCoroutines();
         WriteFinalValues();
+        ResetMultiplierScale();
     }
 
     private void SetImmediate(string unitPrice, string autoNangPerSecond, string incomePerSecond)
@@ -165,6 +198,48 @@ public sealed class HUDStatRollAnimator : MonoBehaviour
 
         if (incomePerSecondText != null)
             incomePerSecondText.text = lastIncomePerSecond;
+    }
+
+    private void UpdateMultiplierCard(double incomeMultiplier)
+    {
+        bool shouldBeVisible = !double.IsNaN(incomeMultiplier)
+                               && !double.IsInfinity(incomeMultiplier)
+                               && Math.Abs(incomeMultiplier - 1d) > 0.0001d;
+
+        if (multiplierCard == null)
+            return;
+
+        if (multiplierCard.activeSelf != shouldBeVisible)
+            multiplierCard.SetActive(shouldBeVisible);
+
+        isMultiplierVisible = shouldBeVisible;
+        if (!shouldBeVisible)
+        {
+            ResetMultiplierScale();
+            return;
+        }
+
+        CacheMultiplierBaseScale();
+        if (multiplierText != null)
+            multiplierText.text = "x" + incomeMultiplier.ToString("0.##", CultureInfo.InvariantCulture);
+    }
+
+    private void CacheMultiplierBaseScale()
+    {
+        if (multiplierCardTransform == null && multiplierCard != null)
+            multiplierCardTransform = multiplierCard.GetComponent<RectTransform>();
+
+        if (multiplierCardTransform == null || hasMultiplierBaseScale)
+            return;
+
+        multiplierBaseScale = multiplierCardTransform.localScale;
+        hasMultiplierBaseScale = true;
+    }
+
+    private void ResetMultiplierScale()
+    {
+        if (multiplierCardTransform != null && hasMultiplierBaseScale)
+            multiplierCardTransform.localScale = multiplierBaseScale;
     }
 
     private string BuildRollingValue(string targetValue, float elapsed, float duration, int digitCount)

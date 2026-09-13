@@ -1,6 +1,7 @@
 using System.Collections.Generic;
 using JackyUtility;
 using UnityEngine;
+using UnityEngine.Serialization;
 
 [CreateAssetMenu(
     fileName = "UpgradeProfilePP_",
@@ -8,8 +9,9 @@ using UnityEngine;
 public class UpgradeProfileProperty : EnumStringKeyedProperty<Key_UpgradeProfilePP>
 {
     [Header("Unlock")]
-    [Tooltip("This upgrade becomes permanently available once ScoreManager's highest money reached meets this amount.")]
-    [SerializeField] private double requiredPeakMoney;
+    [Tooltip("This upgrade becomes permanently available once ScoreManager's cumulative earned money meets this amount.")]
+    [FormerlySerializedAs("requiredPeakMoney")]
+    [SerializeField] private double requiredTotalMoneyEarned;
 
     [Header("Levels")]
     [Tooltip("One permanent ScoreModifierProperty for each upgrade level, in purchase order.")]
@@ -18,7 +20,7 @@ public class UpgradeProfileProperty : EnumStringKeyedProperty<Key_UpgradeProfile
     [Header("UI")]
     [SerializeField] private UpgradeSlotId slotId;
 
-    public double RequiredPeakMoney => requiredPeakMoney;
+    public double RequiredTotalMoneyEarned => requiredTotalMoneyEarned;
     public IReadOnlyList<Key_ScoreModifierPP> LevelModifiers => levelModifiers;
     public UpgradeSlotId SlotId => slotId;
 }

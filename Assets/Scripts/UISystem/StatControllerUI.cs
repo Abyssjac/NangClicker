@@ -58,7 +58,11 @@ public class StatControllerUI : MonoBehaviour
 
         if (statRollAnimator != null)
         {
-            statRollAnimator.ApplyValues(unitPrice, autoNangPerSecond, incomePerSecond);
+            statRollAnimator.ApplyValues(
+                unitPrice,
+                autoNangPerSecond,
+                incomePerSecond,
+                scoreManager.IncomeMultiplier);
             return;
         }
 

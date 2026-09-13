@@ -8,6 +8,54 @@ using UnityEngine;
 /// </summary>
 public sealed class StoreVisualController : MonoBehaviour
 {
+    /// <summary>
+    /// Read-only crowd state intended for the Store Visual Controller debug window.
+    /// It exposes the visual system only; it never changes ScoreManager data.
+    /// </summary>
+    public readonly struct CrowdDebugSnapshot
+    {
+        public CrowdDebugSnapshot(
+            double automaticNangPerSecond,
+            bool usesAutomaticRateOverride,
+            int tierIndex,
+            double tierThreshold,
+            int capacity,
+            int softTarget,
+            bool usesTargetOverride,
+            int targetOverride,
+            int activeCustomerCount,
+            int pooledCustomerCount,
+            float nextSpawnInSeconds,
+            float nextRerollInSeconds)
+        {
+            AutomaticNangPerSecond = automaticNangPerSecond;
+            UsesAutomaticRateOverride = usesAutomaticRateOverride;
+            TierIndex = tierIndex;
+            TierThreshold = tierThreshold;
+            Capacity = capacity;
+            SoftTarget = softTarget;
+            UsesTargetOverride = usesTargetOverride;
+            TargetOverride = targetOverride;
+            ActiveCustomerCount = activeCustomerCount;
+            PooledCustomerCount = pooledCustomerCount;
+            NextSpawnInSeconds = nextSpawnInSeconds;
+            NextRerollInSeconds = nextRerollInSeconds;
+        }
+
+        public double AutomaticNangPerSecond { get; }
+        public bool UsesAutomaticRateOverride { get; }
+        public int TierIndex { get; }
+        public double TierThreshold { get; }
+        public int Capacity { get; }
+        public int SoftTarget { get; }
+        public bool UsesTargetOverride { get; }
+        public int TargetOverride { get; }
+        public int ActiveCustomerCount { get; }
+        public int PooledCustomerCount { get; }
+        public float NextSpawnInSeconds { get; }
+        public float NextRerollInSeconds { get; }
+    }
+
     [Serializable]
     private struct CrowdTier
     {
@@ -77,6 +125,123 @@ public sealed class StoreVisualController : MonoBehaviour
     private float crowdRateCheckTimer;
     private float softTargetRerollTimer;
     private float customerSpawnTimer = -1f;
+
+    // Runtime-only overrides. They are deliberately not serialized, so debug experiments cannot alter gameplay.
+    private bool usesDebugAutomaticNangPerSecondOverride;
+    private double debugAutomaticNangPerSecond;
+    private bool usesDebugCustomerTargetOverride;
+    private int debugCustomerTarget;
+
+    /// <summary>Returns the live crowd values currently driving the road presentation.</summary>
+    public CrowdDebugSnapshot GetCrowdDebugSnapshot()
+    {
+        double threshold = crowdTiers != null && currentCrowdTierIndex >= 0 && currentCrowdTierIndex < crowdTiers.Length
+            ? crowdTiers[currentCrowdTierIndex].minimumAutomaticNangPerSecond
+            : 0d;
+
+        return new CrowdDebugSnapshot(
+            GetEffectiveAutomaticNangPerSecond(),
+            usesDebugAutomaticNangPerSecondOverride,
+            currentCrowdTierIndex,
+            threshold,
+            customerCapacity,
+            softTarget,
+            usesDebugCustomerTargetOverride,
+            debugCustomerTarget,
+            activeCustomers.Count,
+            inactiveCustomerPool.Count,
+            customerSpawnTimer,
+            softTargetRerollTimer);
+    }
+
+    /// <summary>Temporarily samples a supplied automatic-production rate without modifying ScoreManager.</summary>
+    public void SetDebugAutomaticNangPerSecondOverride(double automaticNangPerSecond)
+    {
+        if (double.IsNaN(automaticNangPerSecond) || double.IsInfinity(automaticNangPerSecond))
+            return;
+
+        usesDebugAutomaticNangPerSecondOverride = true;
+        debugAutomaticNangPerSecond = Math.Max(0d, automaticNangPerSecond);
+        RefreshCrowdTier(force: true);
+    }
+
+    /// <summary>Returns crowd tier selection to ScoreManager.FinalAutoNangPerSec.</summary>
+    public void ClearDebugAutomaticNangPerSecondOverride()
+    {
+        if (!usesDebugAutomaticNangPerSecondOverride)
+            return;
+
+        usesDebugAutomaticNangPerSecondOverride = false;
+        RefreshCrowdTier(force: true);
+    }
+
+    /// <summary>
+    /// Temporarily replaces the soft target with an exact requested target. This may exceed the configured tier capacity
+    /// so dense road layouts can be tested without changing gameplay configuration.
+    /// </summary>
+    public void SetDebugCustomerTargetOverride(int customerTarget)
+    {
+        usesDebugCustomerTargetOverride = true;
+        debugCustomerTarget = Mathf.Max(0, customerTarget);
+        RerollSoftTarget();
+        customerSpawnTimer = activeCustomers.Count < softTarget ? 0f : -1f;
+    }
+
+    /// <summary>Restores normal periodically-rerolled soft-target behaviour.</summary>
+    public void ClearDebugCustomerTargetOverride()
+    {
+        if (!usesDebugCustomerTargetOverride)
+            return;
+
+        usesDebugCustomerTargetOverride = false;
+        RerollSoftTarget();
+        softTargetRerollTimer = Mathf.Max(0.1f, softTargetRerollInterval);
+    }
+
+    /// <summary>Immediately brings the current active customer count to the debug target when a route is configured.</summary>
+    public void ApplyDebugTargetImmediately()
+    {
+        if (!usesDebugCustomerTargetOverride)
+            return;
+
+        RemoveDestroyedReferences();
+        while (activeCustomers.Count > softTarget)
+        {
+            CustomerBehaviour customer = activeCustomers[activeCustomers.Count - 1];
+            ReturnCustomerToPool(customer);
+        }
+
+        while (activeCustomers.Count < softTarget)
+        {
+            int previousCount = activeCustomers.Count;
+            SpawnCustomer();
+            if (activeCustomers.Count == previousCount)
+                break;
+        }
+
+        customerSpawnTimer = activeCustomers.Count < softTarget ? 0f : -1f;
+    }
+
+    /// <summary>Removes all current customers into the existing pool without destroying visual instances.</summary>
+    public void ClearCustomersForDebug()
+    {
+        RemoveDestroyedReferences();
+        while (activeCustomers.Count > 0)
+            ReturnCustomerToPool(activeCustomers[activeCustomers.Count - 1]);
+    }
+
+    /// <summary>Forces an immediate tier evaluation and a fresh normal soft target.</summary>
+    public void ForceRefreshCrowdForDebug()
+    {
+        RefreshCrowdTier(force: true);
+    }
+
+    /// <summary>Rerolls the normal target now. Direct target overrides are intentionally preserved.</summary>
+    public void RerollSoftTargetForDebug()
+    {
+        RerollSoftTarget();
+        softTargetRerollTimer = Mathf.Max(0.1f, softTargetRerollInterval);
+    }
 
     private void Awake()
     {
@@ -258,10 +423,7 @@ public sealed class StoreVisualController : MonoBehaviour
 
     private void RefreshCrowdTier(bool force)
     {
-        if (scoreManager == null)
-            return;
-
-        int nextTierIndex = FindCrowdTier(scoreManager.FinalAutoNangPerSec);
+        int nextTierIndex = FindCrowdTier(GetEffectiveAutomaticNangPerSecond());
         if (!force && nextTierIndex == currentCrowdTierIndex)
             return;
 
@@ -276,6 +438,9 @@ public sealed class StoreVisualController : MonoBehaviour
 
     private int FindCrowdTier(double automaticNangPerSecond)
     {
+        if (crowdTiers == null)
+            return -1;
+
         int result = -1;
         double highestEligibleThreshold = double.NegativeInfinity;
 
@@ -295,7 +460,7 @@ public sealed class StoreVisualController : MonoBehaviour
 
     private void UpdateSoftTargetTimer()
     {
-        if (customerCapacity <= 0)
+        if (usesDebugCustomerTargetOverride || customerCapacity <= 0)
             return;
 
         softTargetRerollTimer -= Time.deltaTime;
@@ -308,6 +473,13 @@ public sealed class StoreVisualController : MonoBehaviour
 
     private void RerollSoftTarget()
     {
+        if (usesDebugCustomerTargetOverride)
+        {
+            softTarget = debugCustomerTarget;
+            EnsureCustomerSpawnIsScheduled(immediateWhenEmpty: true);
+            return;
+        }
+
         if (customerCapacity <= 0)
         {
             softTarget = 0;
@@ -487,5 +659,13 @@ public sealed class StoreVisualController : MonoBehaviour
     private static Vector2 NormalizeRange(Vector2 range)
     {
         return new Vector2(Mathf.Max(0f, Mathf.Min(range.x, range.y)), Mathf.Max(0f, Mathf.Max(range.x, range.y)));
+    }
+
+    private double GetEffectiveAutomaticNangPerSecond()
+    {
+        if (usesDebugAutomaticNangPerSecondOverride)
+            return debugAutomaticNangPerSecond;
+
+        return scoreManager != null ? scoreManager.FinalAutoNangPerSec : 0d;
     }
 }
