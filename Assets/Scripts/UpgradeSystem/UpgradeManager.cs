@@ -253,6 +253,7 @@ public class UpgradeManager : MonoBehaviour
             profile.EnumKey,
             displayModifier.Icon,
             displayModifier.DisplayName,
+            displayModifier.EffectText,
             displayModifier.Description,
             isCompleted ? 0d : displayModifier.UpgradePrice,
             currentLevel,

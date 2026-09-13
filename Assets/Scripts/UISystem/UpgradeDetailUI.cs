@@ -11,6 +11,7 @@ public class UpgradeDetailUI : MonoBehaviour
 {
     [SerializeField] private GameObject contentRoot;
     [SerializeField] private TextMeshProUGUI nameText;
+    [SerializeField] private TextMeshProUGUI effectText;
     [SerializeField] private TextMeshProUGUI descriptionText;
     [SerializeField] private TextMeshProUGUI priceText;
     [SerializeField] private GameObject priceRoot;
@@ -41,6 +42,9 @@ public class UpgradeDetailUI : MonoBehaviour
         if (nameText != null)
             nameText.text = snapshot.DisplayName;
 
+        if (effectText != null)
+            effectText.text = snapshot.EffectText;
+
         if (descriptionText != null)
             descriptionText.text = snapshot.Description;
 
@@ -64,6 +68,9 @@ public class UpgradeDetailUI : MonoBehaviour
 
         if (nameText != null)
             nameText.text = string.Empty;
+
+        if (effectText != null)
+            effectText.text = string.Empty;
 
         if (descriptionText != null)
             descriptionText.text = string.Empty;

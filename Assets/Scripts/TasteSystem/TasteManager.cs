@@ -29,6 +29,14 @@ public sealed class TasteManager : MonoBehaviour, IFeatureUnlockable
     [Tooltip("A non-temporary ScoreModifierProperty whose Modifier Type is IncomeMultiplier. It is active only for an exact, non-empty taste match.")]
     [SerializeField] private Key_ScoreModifierPP incomeMultiplierModifierId = Key_ScoreModifierPP.TasteIncomeMultiplier;
 
+    [Header("Customer Preference")]
+    [Tooltip("Seconds between automatic Chef Special preference refreshes while Taste is unlocked.")]
+    [SerializeField, Min(0.1f)] private float preferenceRefreshInterval = 30f;
+
+    [Header("World Presentation")]
+    [Tooltip("The world-space Chef Special sign. TasteManager owns only this root's unlock visibility; TasteVisualController owns the icon appearance beneath it.")]
+    [SerializeField] private GameObject chefSpecialRoot;
+
     private readonly List<SpiceType> unlockedSpices = new();
     private readonly List<SpiceType> currentSpices = new();
     private readonly List<SpiceType> currentPreference = new();
@@ -37,6 +45,7 @@ public sealed class TasteManager : MonoBehaviour, IFeatureUnlockable
     private ScoreManager modifierTarget;
     private bool modifierAppliedToTarget;
     private bool appliedModifierState;
+    private float preferenceRefreshElapsed;
 
     /// <summary>Raised after the player's produced taste changes.</summary>
     public event Action<IReadOnlyList<SpiceType>> OnCurrentSpicesChanged;
@@ -71,10 +80,15 @@ public sealed class TasteManager : MonoBehaviour, IFeatureUnlockable
             unlockedSpices.Clear();
         currentSpices.Clear();
         currentPreference.Clear();
+        preferenceRefreshElapsed = 0f;
+        RefreshChefSpecialRootVisibility();
     }
 
     private void Start()
     {
+        if (isUnlocked)
+            RefreshPreference();
+
         SynchronizeRuntimeModifier();
     }
 
@@ -83,6 +97,8 @@ public sealed class TasteManager : MonoBehaviour, IFeatureUnlockable
         // ScoreManager can become available after this component's Start during scene initialization.
         if (modifierTarget != ScoreManager.Instance)
             SynchronizeRuntimeModifier();
+
+        UpdatePreferenceRefreshTimer();
     }
 
     private void OnDisable()
@@ -139,8 +155,8 @@ public sealed class TasteManager : MonoBehaviour, IFeatureUnlockable
     }
 
     /// <summary>
-    /// Creates a random non-empty combination from currently unlocked spices. This is deliberately
-    /// called by the debug window for now; the later timed refresh system can call it directly.
+    /// Creates a random non-empty combination from currently unlocked spices and restarts the
+    /// automatic-refresh timer. Both timed refreshes and Debug Window calls use this same path.
     /// </summary>
     public bool RefreshPreference()
     {
@@ -156,7 +172,9 @@ public sealed class TasteManager : MonoBehaviour, IFeatureUnlockable
         }
 
         int selectionCount = UnityEngine.Random.Range(1, shuffledSpices.Count + 1);
-        return SetPreference(shuffledSpices.GetRange(0, selectionCount));
+        bool preferenceChanged = SetPreference(shuffledSpices.GetRange(0, selectionCount));
+        ResetPreferenceRefreshTimer();
+        return preferenceChanged;
     }
 
     /// <summary>
@@ -203,16 +221,19 @@ public sealed class TasteManager : MonoBehaviour, IFeatureUnlockable
 
         bool wasMatch = IsExactTasteMatch;
         isUnlocked = unlocked;
+        RefreshChefSpecialRootVisibility();
 
         if (isUnlocked)
         {
             InitializeUnlockedSpices();
+            RefreshPreference();
         }
         else
         {
             unlockedSpices.Clear();
             currentSpices.Clear();
             currentPreference.Clear();
+            ResetPreferenceRefreshTimer();
             OnCurrentSpicesChanged?.Invoke(CurrentSpices);
             OnPreferenceChanged?.Invoke(CurrentPreference);
         }
@@ -231,6 +252,27 @@ public sealed class TasteManager : MonoBehaviour, IFeatureUnlockable
             if (IsValidSpice(spice) && !unlockedSpices.Contains(spice))
                 unlockedSpices.Add(spice);
         }
+    }
+
+    private void RefreshChefSpecialRootVisibility()
+    {
+        if (chefSpecialRoot != null && chefSpecialRoot.activeSelf != isUnlocked)
+            chefSpecialRoot.SetActive(isUnlocked);
+    }
+
+    private void UpdatePreferenceRefreshTimer()
+    {
+        if (!isUnlocked || preferenceRefreshInterval <= 0f)
+            return;
+
+        preferenceRefreshElapsed += Time.deltaTime;
+        if (preferenceRefreshElapsed >= preferenceRefreshInterval)
+            RefreshPreference();
+    }
+
+    private void ResetPreferenceRefreshTimer()
+    {
+        preferenceRefreshElapsed = 0f;
     }
 
     private void NotifyCurrentTasteChanged(bool wasMatch)

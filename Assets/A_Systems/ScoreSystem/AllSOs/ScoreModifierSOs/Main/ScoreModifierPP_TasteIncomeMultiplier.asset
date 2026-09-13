@@ -15,7 +15,7 @@ MonoBehaviour:
   enumKey: 27
   stringKey: 
   modifierType: 5
-  amount: 5
+  amount: 2
   defaultDuration: 0
   upgradePrice: 0
   displayName: Taste

@@ -9,6 +9,7 @@ public readonly struct UpgradeSlotSnapshot
     public Key_UpgradeProfilePP ProfileId { get; }
     public Sprite Icon { get; }
     public string DisplayName { get; }
+    public string EffectText { get; }
     public string Description { get; }
     public double Price { get; }
     public int CurrentLevel { get; }
@@ -20,6 +21,7 @@ public readonly struct UpgradeSlotSnapshot
         Key_UpgradeProfilePP profileId,
         Sprite icon,
         string displayName,
+        string effectText,
         string description,
         double price,
         int currentLevel,
@@ -30,6 +32,7 @@ public readonly struct UpgradeSlotSnapshot
         ProfileId = profileId;
         Icon = icon;
         DisplayName = displayName;
+        EffectText = effectText;
         Description = description;
         Price = price;
         CurrentLevel = currentLevel;
