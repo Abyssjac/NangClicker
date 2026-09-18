@@ -1780,7 +1780,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: de1fac5ef02db59498b43189bd895dbd, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::MonaLisaGame.GazeFocusController
-  inputProviderBehaviour: {fileID: 1568733539}
+  inputProviderBehaviour: {fileID: 5261328153133647456}
   gazeArea:
     bottomLeft: {x: -7, y: -5.3}
     topRight: {x: 7, y: 0.6}
@@ -2070,8 +2070,86 @@ Transform:
   - {fileID: 394927433}
   - {fileID: 224556258}
   - {fileID: 1418274746}
+  - {fileID: 5261328153133647455}
   m_Father: {fileID: 0}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!1001 &5261328153133647454
+PrefabInstance:
+  m_ObjectHideFlags: 0
+  serializedVersion: 2
+  m_Modification:
+    serializedVersion: 3
+    m_TransformParent: {fileID: 2114880162}
+    m_Modifications:
+    - target: {fileID: 1009068828690667301, guid: d1ee71cf562bdc34884b3b2aeb1048e1, type: 3}
+      propertyPath: inputCamera
+      value: 
+      objectReference: {fileID: 550808638}
+    - target: {fileID: 5674021619543161574, guid: d1ee71cf562bdc34884b3b2aeb1048e1, type: 3}
+      propertyPath: m_LocalPosition.x
+      value: 5.7
+      objectReference: {fileID: 0}
+    - target: {fileID: 5674021619543161574, guid: d1ee71cf562bdc34884b3b2aeb1048e1, type: 3}
+      propertyPath: m_LocalPosition.y
+      value: -4.18
+      objectReference: {fileID: 0}
+    - target: {fileID: 5674021619543161574, guid: d1ee71cf562bdc34884b3b2aeb1048e1, type: 3}
+      propertyPath: m_LocalPosition.z
+      value: -0.72
+      objectReference: {fileID: 0}
+    - target: {fileID: 5674021619543161574, guid: d1ee71cf562bdc34884b3b2aeb1048e1, type: 3}
+      propertyPath: m_LocalRotation.w
+      value: 1
+      objectReference: {fileID: 0}
+    - target: {fileID: 5674021619543161574, guid: d1ee71cf562bdc34884b3b2aeb1048e1, type: 3}
+      propertyPath: m_LocalRotation.x
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 5674021619543161574, guid: d1ee71cf562bdc34884b3b2aeb1048e1, type: 3}
+      propertyPath: m_LocalRotation.y
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 5674021619543161574, guid: d1ee71cf562bdc34884b3b2aeb1048e1, type: 3}
+      propertyPath: m_LocalRotation.z
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 5674021619543161574, guid: d1ee71cf562bdc34884b3b2aeb1048e1, type: 3}
+      propertyPath: m_LocalEulerAnglesHint.x
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 5674021619543161574, guid: d1ee71cf562bdc34884b3b2aeb1048e1, type: 3}
+      propertyPath: m_LocalEulerAnglesHint.y
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 5674021619543161574, guid: d1ee71cf562bdc34884b3b2aeb1048e1, type: 3}
+      propertyPath: m_LocalEulerAnglesHint.z
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 7558577739072766656, guid: d1ee71cf562bdc34884b3b2aeb1048e1, type: 3}
+      propertyPath: m_Name
+      value: VirtualScrollball
+      objectReference: {fileID: 0}
+    m_RemovedComponents: []
+    m_RemovedGameObjects: []
+    m_AddedGameObjects: []
+    m_AddedComponents: []
+  m_SourcePrefab: {fileID: 100100000, guid: d1ee71cf562bdc34884b3b2aeb1048e1, type: 3}
+--- !u!4 &5261328153133647455 stripped
+Transform:
+  m_CorrespondingSourceObject: {fileID: 5674021619543161574, guid: d1ee71cf562bdc34884b3b2aeb1048e1, type: 3}
+  m_PrefabInstance: {fileID: 5261328153133647454}
+  m_PrefabAsset: {fileID: 0}
+--- !u!114 &5261328153133647456 stripped
+MonoBehaviour:
+  m_CorrespondingSourceObject: {fileID: 1009068828690667301, guid: d1ee71cf562bdc34884b3b2aeb1048e1, type: 3}
+  m_PrefabInstance: {fileID: 5261328153133647454}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: a1769379637c4e1489f5761e49ebb7ff, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::MonaLisaGame.MouseDragScrollballInputProvider
 --- !u!1660057539 &9223372036854775807
 SceneRoots:
   m_ObjectHideFlags: 0
