@@ -19,5 +19,5 @@ MonoBehaviour:
   defaultDuration: 0
   upgradePrice: 20000
   displayName: More Workers III
-  icon: {fileID: 21300000, guid: 6affdd0cd5b412d4a8147a9cbba88f3b, type: 3}
+  icon: {fileID: 21300000, guid: e9d3df2065e3b064788c6b21e0f8080d, type: 3}
   description: More hands at the bakery bake naan automatically.

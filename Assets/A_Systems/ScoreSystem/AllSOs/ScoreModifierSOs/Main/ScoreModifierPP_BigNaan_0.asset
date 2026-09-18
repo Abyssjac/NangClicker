@@ -19,6 +19,6 @@ MonoBehaviour:
   defaultDuration: 0
   upgradePrice: 30000
   displayName: Big, Big, Big Naan I
-  icon: {fileID: 21300000, guid: 27a09205597ed2e4ea193a70061dbe58, type: 3}
+  icon: {fileID: 21300000, guid: 43fd1b8197df23843b2bf2eec4de1235, type: 3}
   description: Big portions are filling. Customers notice the higher price, but what
     they notice even more is the generous naan.

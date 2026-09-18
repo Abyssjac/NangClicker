@@ -19,5 +19,5 @@ MonoBehaviour:
   defaultDuration: 0
   upgradePrice: 400
   displayName: Brand-New Rolling Pin IV
-  icon: {fileID: 21300000, guid: 0c286a668b639704f8040a1a586e991a, type: 3}
+  icon: {fileID: 21300000, guid: b3375c84c7598de4aa8284c4c44b2010, type: 3}
   description: The dough becomes chewier, and customers like it more.

@@ -19,5 +19,5 @@ MonoBehaviour:
   defaultDuration: 0
   upgradePrice: 10000000
   displayName: Practice Makes Perfect V
-  icon: {fileID: 21300000, guid: 0c286a668b639704f8040a1a586e991a, type: 3}
+  icon: {fileID: 21300000, guid: ab0bb9477f320ae44b5a5322a3071550, type: 3}
   description: Day after day of practice improves your naan-making speed.
