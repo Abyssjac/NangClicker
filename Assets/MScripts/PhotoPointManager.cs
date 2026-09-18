@@ -40,6 +40,10 @@ namespace MonaLisaGame
         [SerializeField] private PhotoPointView photoPointPrefab;
         [SerializeField] private Transform photoPointRoot;
 
+        [Header("Success Effect")]
+        [SerializeField] private PhotoFlashEffect successFlashPrefab;
+        [SerializeField] private Transform successFlashRoot;
+
         [Header("Photo Point Rules")]
         [SerializeField, Min(0.01f)] private float hitRadius = 0.72f;
         [SerializeField, Min(0.01f)] private float patienceDuration = 6f;
@@ -189,6 +193,13 @@ namespace MonaLisaGame
             requiredFocusDuration = Mathf.Max(0.01f, configuredFocusDuration);
         }
 
+        /// <summary>Assigns the one-shot visual spawned at a photo point's exact world position on success.</summary>
+        public void ConfigureSuccessFlash(PhotoFlashEffect prefab, Transform root)
+        {
+            successFlashPrefab = prefab;
+            successFlashRoot = root;
+        }
+
         private PhotoPointView TakePhotoPointFromPoolOrCreate()
         {
             while (inactivePhotoPointPool.Count > 0)
@@ -208,8 +219,13 @@ namespace MonaLisaGame
             ActivePhotoPoint point = activePhotoPoints[index];
             activePhotoPoints.RemoveAt(index);
 
+            Vector3 resolvedPosition = point.View != null ? point.View.transform.position : transform.position;
+
             if (result == PhotoPointResult.Succeeded)
+            {
                 SuccessCount++;
+                SpawnSuccessFlash(resolvedPosition);
+            }
             else if (result == PhotoPointResult.Failed)
                 FailureCount++;
 
@@ -218,6 +234,17 @@ namespace MonaLisaGame
 
             point.ResolvedCallback?.Invoke(result);
             ReturnPhotoPointToPool(point.View);
+        }
+
+        private void SpawnSuccessFlash(Vector3 worldPosition)
+        {
+            if (successFlashPrefab == null)
+                return;
+
+            Transform parent = successFlashRoot != null ? successFlashRoot : transform;
+            PhotoFlashEffect flash = Instantiate(successFlashPrefab, parent);
+            flash.name = "PhotoFlash";
+            flash.PlayAt(worldPosition);
         }
 
         private void ReturnPhotoPointToPool(PhotoPointView view)
