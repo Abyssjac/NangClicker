@@ -15,7 +15,8 @@ public class UpgradeProfileProperty : EnumStringKeyedProperty<Key_UpgradeProfile
 
     [Header("Levels")]
     [Tooltip("One permanent ScoreModifierProperty for each upgrade level, in purchase order.")]
-    [SerializeField] private List<Key_ScoreModifierPP> levelModifiers = new();
+    [SerializeField, PropertyDatabaseLink(typeof(ScoreModifierDatabase))]
+    private List<Key_ScoreModifierPP> levelModifiers = new();
 
     [Header("UI")]
     [SerializeField] private UpgradeSlotId slotId;
