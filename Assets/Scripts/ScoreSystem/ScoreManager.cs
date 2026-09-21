@@ -4,6 +4,24 @@ using JackyUtility;
 using UnityEngine;
 using UnityEngine.Serialization;
 
+/// <summary>
+/// The authoritative outcome of one immediately settled manual Nang sale.
+/// Presentation listeners consume this result instead of recomputing a price that may have changed.
+/// </summary>
+public readonly struct ManualNangSaleResult
+{
+    public ManualNangSaleResult(double nangAmount, double saleValuePerNang, double earnedMoney)
+    {
+        NangAmount = nangAmount;
+        SaleValuePerNang = saleValuePerNang;
+        EarnedMoney = earnedMoney;
+    }
+
+    public double NangAmount { get; }
+    public double SaleValuePerNang { get; }
+    public double EarnedMoney { get; }
+}
+
 public class ScoreManager : MonoBehaviour
 {
     private const float MinimumProductionTickInterval = 0.01f;
@@ -29,10 +47,11 @@ public class ScoreManager : MonoBehaviour
     [SerializeField, Min(0f)] private double totalMoneyEarned;
     [SerializeField, Min(0f)] private double nangAmt;
 
-    [Header("Production Tick")]
-    [Tooltip("Production and sales are settled in fixed game-time intervals.")]
+    [Header("Automatic Production Tick")]
+    [Tooltip("Automatic Nang production and sales are settled in fixed game-time intervals.")]
     [SerializeField, Min(MinimumProductionTickInterval)] private float productionTickInterval = 1f;
-    [Tooltip("The Nang amount queued by one manual click.")]
+    [Header("Manual Production")]
+    [Tooltip("The base Nang amount immediately produced by one manual click.")]
     [SerializeField, Min(0f)] private double manualNangPerClick = 1d;
 
     [Header("Furnace")]
@@ -49,11 +68,11 @@ public class ScoreManager : MonoBehaviour
 
     private bool isInitialized;
     private float productionTickTimer;
-    private double pendingManualNang;
     private double lastTickAutomaticNang;
-    private double lastTickManualNang;
     private double lastTickTotalNang;
     private double lastTickIncome;
+    private double lastManualNangProduced;
+    private double lastManualIncome;
 
     public event Action OnScoreChanged;
     public event Action OnModifiersChanged;
@@ -81,11 +100,11 @@ public class ScoreManager : MonoBehaviour
         baseFurnaceProfitableHeatMin + (float)FurnaceRangeAdditiveBonus,
         0f,
         100f);
-    public double PendingManualNang => pendingManualNang;
     public double LastTickAutomaticNang => lastTickAutomaticNang;
-    public double LastTickManualNang => lastTickManualNang;
     public double LastTickTotalNang => lastTickTotalNang;
     public double LastTickIncome => lastTickIncome;
+    public double LastManualNangProduced => lastManualNangProduced;
+    public double LastManualIncome => lastManualIncome;
 
     public double UnitSalePriceAdditiveRate { get; private set; }
     public double UnitSalePriceMultiplier { get; private set; } = 1d;
@@ -133,8 +152,7 @@ public class ScoreManager : MonoBehaviour
 
     private void Start()
     {
-        isInitialized = ResolveDatabase();
-        RecalculateScores();
+        EnsureInitialized();
     }
 
     private void OnDestroy()
@@ -145,14 +163,8 @@ public class ScoreManager : MonoBehaviour
 
     private void Update()
     {
-        if (!isInitialized)
-        {
-            isInitialized = ResolveDatabase();
-            if (!isInitialized)
-                return;
-
-            RecalculateScores();
-        }
+        if (!EnsureInitialized())
+            return;
 
         if (isSimulationPaused)
             return;
@@ -298,35 +310,47 @@ public class ScoreManager : MonoBehaviour
         return true;
     }
 
-    /// <summary>
-    /// Queues one manual click using the currently configured per-click Nang amount.
-    /// The queued Nang is committed at the next production tick.
-    /// </summary>
-    public bool QueueManualNangClick()
+    /// <summary>Immediately produces and sells one manual click at the current final sale value.</summary>
+    public bool TryProduceManualNang(out ManualNangSaleResult result)
     {
-        return QueueManualNangProduction(FinalManualNangPerClick);
+        result = default;
+        if (!EnsureInitialized())
+            return false;
+
+        return TryProduceManualNang(FinalManualNangPerClick, out result);
     }
 
     /// <summary>
-    /// Queues manual Nang production for the next production tick. Gameplay should send the
-    /// amount actually produced after its own click/resource validation has succeeded.
+    /// Immediately produces and sells a manually validated Nang amount. The final price is captured
+    /// once here so score data and presentation share exactly the same sale result.
     /// </summary>
-    public bool QueueManualNangProduction(double amount)
+    public bool TryProduceManualNang(double amount, out ManualNangSaleResult result)
     {
-        if (!IsFinite(amount) || amount <= 0d)
+        result = default;
+        if (!EnsureInitialized()
+            || !IsFinite(amount)
+            || amount <= 0d
+            || !IsFinite(FinalSaleValuePerNang)
+            || FinalSaleValuePerNang < 0d)
             return false;
 
-        pendingManualNang += amount;
+        double earnedMoney = amount * FinalSaleValuePerNang;
+        if (!IsFinite(earnedMoney))
+            return false;
+
+        nangAmt += amount;
+        CreditMoney(earnedMoney, countAsEarned: true);
+        lastManualNangProduced = amount;
+        lastManualIncome = earnedMoney;
+        result = new ManualNangSaleResult(amount, FinalSaleValuePerNang, earnedMoney);
         OnScoreChanged?.Invoke();
         return true;
     }
 
-    /// <summary>
-    /// Kept for existing callers. Production is now queued and settled centrally on the next tick.
-    /// </summary>
+    /// <summary>Compatibility entry point for callers that already own a manually validated Nang amount.</summary>
     public void RecordNangProduced(double amount)
     {
-        QueueManualNangProduction(amount);
+        TryProduceManualNang(amount, out _);
     }
 
     public void SetBaseUnitSalePrice(double value)
@@ -434,6 +458,19 @@ public class ScoreManager : MonoBehaviour
         OnScoreChanged?.Invoke();
     }
 
+    private bool EnsureInitialized()
+    {
+        if (isInitialized)
+            return true;
+
+        isInitialized = ResolveDatabase();
+        if (!isInitialized)
+            return false;
+
+        RecalculateScores();
+        return true;
+    }
+
     private void AdvanceProductionTicks(float deltaTime)
     {
         productionTickTimer += deltaTime;
@@ -450,10 +487,8 @@ public class ScoreManager : MonoBehaviour
     private void SettleProductionTick(float tickDuration)
     {
         lastTickAutomaticNang = FinalAutoNangPerSec * tickDuration;
-        lastTickManualNang = pendingManualNang;
-        lastTickTotalNang = lastTickAutomaticNang + lastTickManualNang;
+        lastTickTotalNang = lastTickAutomaticNang;
         lastTickIncome = FinalSaleValuePerNang * lastTickTotalNang;
-        pendingManualNang = 0d;
 
         if (lastTickTotalNang != 0d)
         {

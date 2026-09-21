@@ -8,20 +8,22 @@ using UnityEngine.InputSystem;
 /// </summary>
 public readonly struct NangPressInfo
 {
-    public NangPressInfo(Vector3 worldPoint, Vector3 worldNormal, double queuedNangAmount)
+    public NangPressInfo(Vector3 worldPoint, Vector3 worldNormal, double producedNangAmount, double earnedMoney)
     {
         WorldPoint = worldPoint;
         WorldNormal = worldNormal;
-        QueuedNangAmount = queuedNangAmount;
+        ProducedNangAmount = producedNangAmount;
+        EarnedMoney = earnedMoney;
     }
 
     public Vector3 WorldPoint { get; }
     public Vector3 WorldNormal { get; }
-    public double QueuedNangAmount { get; }
+    public double ProducedNangAmount { get; }
+    public double EarnedMoney { get; }
 }
 
 /// <summary>
-/// Converts a left-click on this Nang's designated 3D Collider into one queued manual Nang click.
+/// Converts a left-click on this Nang's designated 3D Collider into one immediately settled manual Nang sale.
 /// Production, score, and future resource validation remain owned by ScoreManager and other systems.
 /// </summary>
 [DisallowMultipleComponent]
@@ -51,7 +53,7 @@ public class NangBehaviour : MonoBehaviour
     public Collider HitCollider => hitCollider;
 
     /// <summary>
-    /// Raised only after this click has successfully been queued as manual Nang production.
+    /// Raised only after this click has successfully produced and sold manual Nang.
     /// Visual listeners can use the hit position without owning input or score logic.
     /// </summary>
     public event Action<NangPressInfo> OnNangPressed;
@@ -88,10 +90,14 @@ public class NangBehaviour : MonoBehaviour
             return false;
 
         ScoreManager manager = ScoreManager.Instance;
-        if (manager == null || !manager.QueueManualNangClick())
+        if (manager == null || !manager.TryProduceManualNang(out ManualNangSaleResult saleResult))
             return false;
 
-        OnNangPressed?.Invoke(new NangPressInfo(hit.point, hit.normal, manager.ManualNangPerClick));
+        OnNangPressed?.Invoke(new NangPressInfo(
+            hit.point,
+            hit.normal,
+            saleResult.NangAmount,
+            saleResult.EarnedMoney));
         return true;
     }
 

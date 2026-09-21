@@ -55,7 +55,7 @@ public class NangClickNotificationPresenter : MonoBehaviour
 
         var request = new WorldFloatRequest(
             pressInfo.WorldPoint,
-            "+" + FormatAmount(pressInfo.QueuedNangAmount),
+            "+" + FormatAmount(pressInfo.EarnedMoney),
             nangIcon,
             camera,
             ResolveSurfaceNormal(camera, pressInfo.WorldNormal));

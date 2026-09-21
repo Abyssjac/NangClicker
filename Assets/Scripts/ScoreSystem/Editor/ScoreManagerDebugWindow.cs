@@ -8,7 +8,7 @@ public class ScoreManagerDebugWindow : DebugEditorWindow<ScoreManager>
     private Key_ScoreModifierPP selectedPropertyId = Key_ScoreModifierPP.None;
     private bool useDurationOverride;
     private float durationOverride = 10f;
-    private double manualNangToQueue = 1d;
+    private double manualNangToProduce = 1d;
     private double moneyToAdd = 100d;
     private double baseAutoNangPerSecondToAdd = 1d;
 
@@ -43,7 +43,7 @@ public class ScoreManagerDebugWindow : DebugEditorWindow<ScoreManager>
             manager.SetSimulationPaused(paused);
 
         EditorGUILayout.HelpBox(
-            "Paused stops production ticks and temporary-buff countdowns. Queued manual Nang is retained.",
+            "Paused stops automatic production ticks and temporary-buff countdowns. Manual presses still settle immediately.",
             MessageType.Info);
     }
 
@@ -64,24 +64,24 @@ public class ScoreManagerDebugWindow : DebugEditorWindow<ScoreManager>
 
     private void DrawProductionTick(ScoreManager manager)
     {
-        Header("Production Tick");
+        Header("Automatic Production Tick");
         Row("Tick Interval", manager.ProductionTickInterval.ToString("0.###") + " s");
         Row("Time Until Next Tick", manager.TimeUntilNextProductionTick.ToString("0.###") + " s");
         Row("Manual Nang / Click", Format(manager.ManualNangPerClick));
-        Row("Pending Manual Nang", Format(manager.PendingManualNang));
+        Row("Last Manual Nang", Format(manager.LastManualNangProduced));
+        Row("Last Manual Income", Format(manager.LastManualIncome));
         Row("Last Tick Automatic Nang", Format(manager.LastTickAutomaticNang));
-        Row("Last Tick Manual Nang", Format(manager.LastTickManualNang));
         Row("Last Tick Total Nang", Format(manager.LastTickTotalNang));
         Row("Last Tick Income", Format(manager.LastTickIncome));
 
-        if (GUILayout.Button("Queue One Manual Click"))
-            manager.QueueManualNangClick();
+        if (GUILayout.Button("Produce One Manual Click"))
+            manager.TryProduceManualNang(out _);
 
-        manualNangToQueue = EditorGUILayout.DoubleField("Manual Nang To Queue", manualNangToQueue);
-        using (new EditorGUI.DisabledScope(manualNangToQueue <= 0d))
+        manualNangToProduce = EditorGUILayout.DoubleField("Manual Nang To Produce", manualNangToProduce);
+        using (new EditorGUI.DisabledScope(manualNangToProduce <= 0d))
         {
-            if (GUILayout.Button("Queue Manual Nang"))
-                manager.QueueManualNangProduction(manualNangToQueue);
+            if (GUILayout.Button("Produce Manual Nang"))
+                manager.TryProduceManualNang(manualNangToProduce, out _);
         }
     }
 
