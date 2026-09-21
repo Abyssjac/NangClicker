@@ -266,7 +266,7 @@ MonoBehaviour:
   maxRayDistance: 100
   raycastLayers:
     serializedVersion: 2
-    m_Bits: 4294967291
+    m_Bits: 51
   triggerInteraction: 2
 --- !u!1 &7387334220286968633
 GameObject:
@@ -569,5 +569,5 @@ MonoBehaviour:
   maxRayDistance: 100
   raycastLayers:
     serializedVersion: 2
-    m_Bits: 4294967291
+    m_Bits: 51
   triggerInteraction: 2
