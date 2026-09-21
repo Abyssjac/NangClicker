@@ -8768,17 +8768,13 @@ MonoBehaviour:
   customerVisitAreaMax: {fileID: 731698100}
   customerMoveSpeed: 1.5
   customerStayTimeRange: {x: 1.2, y: 3}
-  customerSpawnIntervalRange: {x: 0.4, y: 1.2}
   crowdTiers:
   - minimumAutomaticNangPerSecond: 5
-    customerCapacity: 3
+    spawnIntervalSeconds: 10
   - minimumAutomaticNangPerSecond: 10
-    customerCapacity: 8
+    spawnIntervalSeconds: 5
   - minimumAutomaticNangPerSecond: 20
-    customerCapacity: 15
-  softTargetMinimumFillRatio: 0.7
-  softTargetMaximumFillRatio: 0.9
-  softTargetRerollInterval: 12
+    spawnIntervalSeconds: 3
   crowdRateCheckInterval: 0.5
 --- !u!1 &1267001688
 GameObject:

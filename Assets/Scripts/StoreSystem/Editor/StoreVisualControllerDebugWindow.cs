@@ -12,8 +12,6 @@ public sealed class StoreVisualControllerDebugWindow : DebugEditorWindow<StoreVi
     private bool hasInitialisedControls;
     private bool useAutomaticRateOverride;
     private double automaticRateOverride;
-    private bool useCustomerTargetOverride;
-    private int customerTargetOverride;
 
     [MenuItem("Jacky Tools/Store Visual Controller")]
     public static void ShowWindow() =>
@@ -50,7 +48,6 @@ public sealed class StoreVisualControllerDebugWindow : DebugEditorWindow<StoreVi
 
         DrawLiveState(snapshot);
         DrawRateOverride(controller);
-        DrawTargetOverride(controller);
         DrawUtilityControls(controller);
     }
 
@@ -61,13 +58,11 @@ public sealed class StoreVisualControllerDebugWindow : DebugEditorWindow<StoreVi
         Row("Rate Source", snapshot.UsesAutomaticRateOverride ? "Debug Override" : "ScoreManager");
         Row("Current Tier", snapshot.TierIndex < 0 ? "None" : (snapshot.TierIndex + 1).ToString());
         Row("Tier Threshold", snapshot.TierIndex < 0 ? "-" : snapshot.TierThreshold.ToString("0.###"));
-        Row("Tier Capacity", snapshot.Capacity.ToString());
-        Row("Current Target", snapshot.SoftTarget.ToString());
-        Row("Target Source", snapshot.UsesTargetOverride ? "Direct Debug Target" : "Soft Target");
+        Row("Spawn Interval", snapshot.TierIndex < 0 ? "-" : snapshot.SpawnIntervalSeconds.ToString("0.###") + " s");
+        Row("Spawn Chance", snapshot.TierIndex < 0 ? "-" : "95%");
         Row("Active Customers", snapshot.ActiveCustomerCount.ToString());
         Row("Pooled Customers", snapshot.PooledCustomerCount.ToString());
         Row("Next Spawn", FormatTimer(snapshot.NextSpawnInSeconds));
-        Row("Next Target Reroll", FormatTimer(snapshot.NextRerollInSeconds));
     }
 
     private void DrawRateOverride(StoreVisualController controller)
@@ -99,43 +94,11 @@ public sealed class StoreVisualControllerDebugWindow : DebugEditorWindow<StoreVi
         }
     }
 
-    private void DrawTargetOverride(StoreVisualController controller)
-    {
-        Header("Direct Customer Target Test");
-        EditorGUILayout.HelpBox(
-            "This bypasses the current tier's soft target and can exceed its normal capacity. Use Apply Exact Target to fill or trim the road immediately.",
-            MessageType.Info);
-
-        bool requestedOverride = EditorGUILayout.Toggle("Use Direct Target", useCustomerTargetOverride);
-        customerTargetOverride = Mathf.Max(0, EditorGUILayout.IntField("Target Customers", customerTargetOverride));
-
-        if (requestedOverride != useCustomerTargetOverride)
-        {
-            useCustomerTargetOverride = requestedOverride;
-            if (useCustomerTargetOverride)
-                controller.SetDebugCustomerTargetOverride(customerTargetOverride);
-            else
-                controller.ClearDebugCustomerTargetOverride();
-        }
-
-        using (new EditorGUI.DisabledScope(!useCustomerTargetOverride))
-        {
-            if (GUILayout.Button("Apply Exact Target Now"))
-            {
-                controller.SetDebugCustomerTargetOverride(customerTargetOverride);
-                controller.ApplyDebugTargetImmediately();
-            }
-        }
-    }
-
     private static void DrawUtilityControls(StoreVisualController controller)
     {
         Header("Utility");
         if (GUILayout.Button("Force Tier Refresh"))
             controller.ForceRefreshCrowdForDebug();
-
-        if (GUILayout.Button("Reroll Normal Soft Target"))
-            controller.RerollSoftTargetForDebug();
 
         if (GUILayout.Button("Clear Active Customers"))
             controller.ClearCustomersForDebug();
@@ -149,8 +112,6 @@ public sealed class StoreVisualControllerDebugWindow : DebugEditorWindow<StoreVi
         hasInitialisedControls = true;
         useAutomaticRateOverride = snapshot.UsesAutomaticRateOverride;
         automaticRateOverride = snapshot.AutomaticNangPerSecond;
-        useCustomerTargetOverride = snapshot.UsesTargetOverride;
-        customerTargetOverride = snapshot.UsesTargetOverride ? snapshot.TargetOverride : snapshot.SoftTarget;
     }
 
     private static string FormatTimer(float timer)

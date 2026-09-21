@@ -19,41 +19,29 @@ public sealed class StoreVisualController : MonoBehaviour
             bool usesAutomaticRateOverride,
             int tierIndex,
             double tierThreshold,
-            int capacity,
-            int softTarget,
-            bool usesTargetOverride,
-            int targetOverride,
+            float spawnIntervalSeconds,
             int activeCustomerCount,
             int pooledCustomerCount,
-            float nextSpawnInSeconds,
-            float nextRerollInSeconds)
+            float nextSpawnInSeconds)
         {
             AutomaticNangPerSecond = automaticNangPerSecond;
             UsesAutomaticRateOverride = usesAutomaticRateOverride;
             TierIndex = tierIndex;
             TierThreshold = tierThreshold;
-            Capacity = capacity;
-            SoftTarget = softTarget;
-            UsesTargetOverride = usesTargetOverride;
-            TargetOverride = targetOverride;
+            SpawnIntervalSeconds = spawnIntervalSeconds;
             ActiveCustomerCount = activeCustomerCount;
             PooledCustomerCount = pooledCustomerCount;
             NextSpawnInSeconds = nextSpawnInSeconds;
-            NextRerollInSeconds = nextRerollInSeconds;
         }
 
         public double AutomaticNangPerSecond { get; }
         public bool UsesAutomaticRateOverride { get; }
         public int TierIndex { get; }
         public double TierThreshold { get; }
-        public int Capacity { get; }
-        public int SoftTarget { get; }
-        public bool UsesTargetOverride { get; }
-        public int TargetOverride { get; }
+        public float SpawnIntervalSeconds { get; }
         public int ActiveCustomerCount { get; }
         public int PooledCustomerCount { get; }
         public float NextSpawnInSeconds { get; }
-        public float NextRerollInSeconds { get; }
     }
 
     [Serializable]
@@ -62,8 +50,8 @@ public sealed class StoreVisualController : MonoBehaviour
         [Tooltip("This tier becomes active when Final Auto Nang / Sec reaches this value.")]
         [Min(0f)] public double minimumAutomaticNangPerSecond;
 
-        [Tooltip("The upper capacity for road customers in this tier. The soft target stays below this value when possible.")]
-        [Min(0)] public int customerCapacity;
+        [Tooltip("Seconds between customer-spawn attempts while this tier is active. Zero uses the built-in default for this tier (5 / 3 / 1 seconds).")]
+        [Min(0f)] public float spawnIntervalSeconds;
     }
 
     [Header("Visual Prefabs")]
@@ -93,21 +81,14 @@ public sealed class StoreVisualController : MonoBehaviour
     [SerializeField] private Transform customerVisitAreaMax;
     [SerializeField, Min(0f)] private float customerMoveSpeed = 1.5f;
     [SerializeField] private Vector2 customerStayTimeRange = new(1.2f, 3f);
-    [SerializeField] private Vector2 customerSpawnIntervalRange = new(0.4f, 1.2f);
 
     [Header("Customer Crowd")]
     [SerializeField] private CrowdTier[] crowdTiers =
     {
-        new CrowdTier { minimumAutomaticNangPerSecond = 5d, customerCapacity = 3 },
-        new CrowdTier { minimumAutomaticNangPerSecond = 10d, customerCapacity = 8 },
-        new CrowdTier { minimumAutomaticNangPerSecond = 20d, customerCapacity = 15 },
+        new CrowdTier { minimumAutomaticNangPerSecond = 5d, spawnIntervalSeconds = 5f },
+        new CrowdTier { minimumAutomaticNangPerSecond = 10d, spawnIntervalSeconds = 3f },
+        new CrowdTier { minimumAutomaticNangPerSecond = 20d, spawnIntervalSeconds = 1f },
     };
-    [Tooltip("The lower bound used when a soft customer target is rerolled.")]
-    [SerializeField, Range(0f, 1f)] private float softTargetMinimumFillRatio = 0.7f;
-    [Tooltip("The upper bound used when a soft customer target is rerolled. The target remains below the tier capacity when possible.")]
-    [SerializeField, Range(0f, 1f)] private float softTargetMaximumFillRatio = 0.9f;
-    [Tooltip("How often the road selects a new soft target within the current tier.")]
-    [SerializeField, Min(0.1f)] private float softTargetRerollInterval = 12f;
     [Tooltip("How often Final Auto Nang / Sec is sampled to determine the active customer tier.")]
     [SerializeField, Min(0.05f)] private float crowdRateCheckInterval = 0.5f;
 
@@ -120,17 +101,12 @@ public sealed class StoreVisualController : MonoBehaviour
     private UpgradeManager upgradeManager;
     private ScoreManager scoreManager;
     private int currentCrowdTierIndex = int.MinValue;
-    private int customerCapacity;
-    private int softTarget;
     private float crowdRateCheckTimer;
-    private float softTargetRerollTimer;
     private float customerSpawnTimer = -1f;
 
     // Runtime-only overrides. They are deliberately not serialized, so debug experiments cannot alter gameplay.
     private bool usesDebugAutomaticNangPerSecondOverride;
     private double debugAutomaticNangPerSecond;
-    private bool usesDebugCustomerTargetOverride;
-    private int debugCustomerTarget;
 
     /// <summary>Returns the live crowd values currently driving the road presentation.</summary>
     public CrowdDebugSnapshot GetCrowdDebugSnapshot()
@@ -138,20 +114,17 @@ public sealed class StoreVisualController : MonoBehaviour
         double threshold = crowdTiers != null && currentCrowdTierIndex >= 0 && currentCrowdTierIndex < crowdTiers.Length
             ? crowdTiers[currentCrowdTierIndex].minimumAutomaticNangPerSecond
             : 0d;
+        float spawnInterval = GetCustomerSpawnIntervalSeconds();
 
         return new CrowdDebugSnapshot(
             GetEffectiveAutomaticNangPerSecond(),
             usesDebugAutomaticNangPerSecondOverride,
             currentCrowdTierIndex,
             threshold,
-            customerCapacity,
-            softTarget,
-            usesDebugCustomerTargetOverride,
-            debugCustomerTarget,
+            spawnInterval,
             activeCustomers.Count,
             inactiveCustomerPool.Count,
-            customerSpawnTimer,
-            softTargetRerollTimer);
+            customerSpawnTimer);
     }
 
     /// <summary>Temporarily samples a supplied automatic-production rate without modifying ScoreManager.</summary>
@@ -175,53 +148,6 @@ public sealed class StoreVisualController : MonoBehaviour
         RefreshCrowdTier(force: true);
     }
 
-    /// <summary>
-    /// Temporarily replaces the soft target with an exact requested target. This may exceed the configured tier capacity
-    /// so dense road layouts can be tested without changing gameplay configuration.
-    /// </summary>
-    public void SetDebugCustomerTargetOverride(int customerTarget)
-    {
-        usesDebugCustomerTargetOverride = true;
-        debugCustomerTarget = Mathf.Max(0, customerTarget);
-        RerollSoftTarget();
-        customerSpawnTimer = activeCustomers.Count < softTarget ? 0f : -1f;
-    }
-
-    /// <summary>Restores normal periodically-rerolled soft-target behaviour.</summary>
-    public void ClearDebugCustomerTargetOverride()
-    {
-        if (!usesDebugCustomerTargetOverride)
-            return;
-
-        usesDebugCustomerTargetOverride = false;
-        RerollSoftTarget();
-        softTargetRerollTimer = Mathf.Max(0.1f, softTargetRerollInterval);
-    }
-
-    /// <summary>Immediately brings the current active customer count to the debug target when a route is configured.</summary>
-    public void ApplyDebugTargetImmediately()
-    {
-        if (!usesDebugCustomerTargetOverride)
-            return;
-
-        RemoveDestroyedReferences();
-        while (activeCustomers.Count > softTarget)
-        {
-            CustomerBehaviour customer = activeCustomers[activeCustomers.Count - 1];
-            ReturnCustomerToPool(customer);
-        }
-
-        while (activeCustomers.Count < softTarget)
-        {
-            int previousCount = activeCustomers.Count;
-            SpawnCustomer();
-            if (activeCustomers.Count == previousCount)
-                break;
-        }
-
-        customerSpawnTimer = activeCustomers.Count < softTarget ? 0f : -1f;
-    }
-
     /// <summary>Removes all current customers into the existing pool without destroying visual instances.</summary>
     public void ClearCustomersForDebug()
     {
@@ -230,17 +156,10 @@ public sealed class StoreVisualController : MonoBehaviour
             ReturnCustomerToPool(activeCustomers[activeCustomers.Count - 1]);
     }
 
-    /// <summary>Forces an immediate tier evaluation and a fresh normal soft target.</summary>
+    /// <summary>Forces an immediate tier evaluation. A changed tier restarts its spawn countdown.</summary>
     public void ForceRefreshCrowdForDebug()
     {
         RefreshCrowdTier(force: true);
-    }
-
-    /// <summary>Rerolls the normal target now. Direct target overrides are intentionally preserved.</summary>
-    public void RerollSoftTargetForDebug()
-    {
-        RerollSoftTarget();
-        softTargetRerollTimer = Mathf.Max(0.1f, softTargetRerollInterval);
     }
 
     private void Awake()
@@ -277,7 +196,6 @@ public sealed class StoreVisualController : MonoBehaviour
             RefreshCrowdTier(force: false);
         }
 
-        UpdateSoftTargetTimer();
         UpdateCustomerSpawning();
     }
 
@@ -427,13 +345,10 @@ public sealed class StoreVisualController : MonoBehaviour
         if (!force && nextTierIndex == currentCrowdTierIndex)
             return;
 
+        bool tierChanged = nextTierIndex != currentCrowdTierIndex;
         currentCrowdTierIndex = nextTierIndex;
-        customerCapacity = nextTierIndex >= 0 ? Mathf.Max(0, crowdTiers[nextTierIndex].customerCapacity) : 0;
-        RerollSoftTarget();
-        softTargetRerollTimer = Mathf.Max(0.1f, softTargetRerollInterval);
-
-        if (activeCustomers.Count < softTarget)
-            customerSpawnTimer = 0f;
+        if (tierChanged)
+            ResetCustomerSpawnTimer();
     }
 
     private int FindCrowdTier(double automaticNangPerSecond)
@@ -458,91 +373,63 @@ public sealed class StoreVisualController : MonoBehaviour
         return result;
     }
 
-    private void UpdateSoftTargetTimer()
-    {
-        if (usesDebugCustomerTargetOverride || customerCapacity <= 0)
-            return;
-
-        softTargetRerollTimer -= Time.deltaTime;
-        if (softTargetRerollTimer > 0f)
-            return;
-
-        RerollSoftTarget();
-        softTargetRerollTimer = Mathf.Max(0.1f, softTargetRerollInterval);
-    }
-
-    private void RerollSoftTarget()
-    {
-        if (usesDebugCustomerTargetOverride)
-        {
-            softTarget = debugCustomerTarget;
-            EnsureCustomerSpawnIsScheduled(immediateWhenEmpty: true);
-            return;
-        }
-
-        if (customerCapacity <= 0)
-        {
-            softTarget = 0;
-            customerSpawnTimer = -1f;
-            return;
-        }
-
-        // Keeping the target below capacity makes a tier feel populated without looking permanently capped.
-        int maximumAllowedTarget = customerCapacity > 1 ? customerCapacity - 1 : customerCapacity;
-        float minimumRatio = Mathf.Clamp01(Mathf.Min(softTargetMinimumFillRatio, softTargetMaximumFillRatio));
-        float maximumRatio = Mathf.Clamp01(Mathf.Max(softTargetMinimumFillRatio, softTargetMaximumFillRatio));
-        int minimumTarget = Mathf.Clamp(Mathf.RoundToInt(customerCapacity * minimumRatio), 0, maximumAllowedTarget);
-        int maximumTarget = Mathf.Clamp(Mathf.FloorToInt(customerCapacity * maximumRatio), minimumTarget, maximumAllowedTarget);
-        softTarget = UnityEngine.Random.Range(minimumTarget, maximumTarget + 1);
-
-        EnsureCustomerSpawnIsScheduled(immediateWhenEmpty: false);
-    }
-
     private void UpdateCustomerSpawning()
     {
-        if (activeCustomers.Count >= softTarget)
+        if (currentCrowdTierIndex < 0 || !HasCustomerRouteConfiguration())
         {
-            customerSpawnTimer = -1f;
+            // Debug.LogError("No Customer Route Configuration or currentCroawnTier <0");
             return;
         }
+            // return;
 
-        if (!HasCustomerRouteConfiguration())
-            return;
 
-        EnsureCustomerSpawnIsScheduled(immediateWhenEmpty: false);
+        // Why do u rest it here, because u reset it here Spawn Customer could never been runned, I commented here;
+        // if (customerSpawnTimer < 0f)
+        //     ResetCustomerSpawnTimer();
+
         if (customerSpawnTimer > 0f)
         {
             customerSpawnTimer -= Time.deltaTime;
             return;
         }
 
-        SpawnCustomer();
-        customerSpawnTimer = -1f;
+        if (UnityEngine.Random.value >= 0.05f)
+        {
+            // Debug.Log("SpawnCustomer");
+            SpawnCustomer();
+        }
+        else
+        {
+            // Debug.LogError("Chance Failed");
+        }
+            // SpawnCustomer();
+
+        ResetCustomerSpawnTimer();
     }
 
-    private void EnsureCustomerSpawnIsScheduled(bool immediateWhenEmpty)
+    private void ResetCustomerSpawnTimer()
     {
-        if (activeCustomers.Count >= softTarget || customerSpawnTimer >= 0f)
-            return;
-
-        if (immediateWhenEmpty && activeCustomers.Count == 0)
-        {
-            customerSpawnTimer = 0f;
-            return;
-        }
-
-        Vector2 interval = NormalizeRange(customerSpawnIntervalRange);
-        customerSpawnTimer = UnityEngine.Random.Range(interval.x, interval.y);
+        customerSpawnTimer = currentCrowdTierIndex >= 0
+            ? GetCustomerSpawnIntervalSeconds()
+            : -1f;
     }
 
     private void SpawnCustomer()
     {
         if (!TryBuildCustomerRoute(out Vector3 spawnPosition, out Vector3 visitPosition, out Vector3 exitPosition))
+        {
+            // Debug.LogError("TryBuildCustomerROute Failed");
             return;
+        }
+            // return;
 
         CustomerBehaviour customer = TakeCustomerFromPoolOrCreate();
         if (customer == null)
+        {
+            // Debug.LogError("TakeCustomerFromPoolOrCreate Failed");
             return;
+        }
+            // return;
 
         customer.gameObject.SetActive(true);
         activeCustomers.Add(customer);
@@ -553,6 +440,8 @@ public sealed class StoreVisualController : MonoBehaviour
             customerMoveSpeed,
             customerStayTimeRange,
             ReturnCustomerToPool);
+
+        // Debug.Log("Customer SPawned");
     }
 
     private CustomerBehaviour TakeCustomerFromPoolOrCreate()
@@ -613,7 +502,6 @@ public sealed class StoreVisualController : MonoBehaviour
         activeCustomers.Remove(customer);
         customer.gameObject.SetActive(false);
         inactiveCustomerPool.Enqueue(customer);
-        EnsureCustomerSpawnIsScheduled(immediateWhenEmpty: false);
     }
 
     private bool TryGetLabourBounds(out float minimumX, out float maximumX)
@@ -656,9 +544,26 @@ public sealed class StoreVisualController : MonoBehaviour
             Debug.LogWarning(message, this);
     }
 
-    private static Vector2 NormalizeRange(Vector2 range)
+    private float GetCustomerSpawnIntervalSeconds()
     {
-        return new Vector2(Mathf.Max(0f, Mathf.Min(range.x, range.y)), Mathf.Max(0f, Mathf.Max(range.x, range.y)));
+        if (crowdTiers == null || currentCrowdTierIndex < 0 || currentCrowdTierIndex >= crowdTiers.Length)
+            return 0f;
+
+        float configuredInterval = crowdTiers[currentCrowdTierIndex].spawnIntervalSeconds;
+        if (configuredInterval > 0f)
+            return configuredInterval;
+
+        // Existing scene instances predate spawnIntervalSeconds. Preserve the agreed three-tier behaviour without
+        // requiring their serialized data to be manually migrated before Play Mode.
+        switch (currentCrowdTierIndex)
+        {
+            case 0:
+                return 5f;
+            case 1:
+                return 3f;
+            default:
+                return 1f;
+        }
     }
 
     private double GetEffectiveAutomaticNangPerSecond()
