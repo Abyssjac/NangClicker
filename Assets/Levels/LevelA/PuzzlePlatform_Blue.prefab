@@ -153,6 +153,7 @@ GameObject:
   m_Component:
   - component: {fileID: 2881073612043467692}
   - component: {fileID: 7415466155572698878}
+  - component: {fileID: 4124596105869979733}
   m_Layer: 0
   m_Name: PuzzlePlatform_Blue
   m_TagString: Untagged
@@ -195,3 +196,18 @@ MonoBehaviour:
   positionSnapDistance: 0.01
   rotationLerpSharpness: 6
   rotationSnapAngle: 0.25
+--- !u!114 &4124596105869979733
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 7228392347174423469}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: e9158d41e9d4406488712da78ead1a4f, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::PuzzleColorReceiver
+  colorType: 2
+  activationManager: {fileID: 0}
+  target: {fileID: 7415466155572698878}

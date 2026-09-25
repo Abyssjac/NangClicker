@@ -291,6 +291,50 @@ Transform:
   - {fileID: 5619512226253392596}
   m_Father: {fileID: 8940525277759302196}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!1 &1210888415897554289
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 1153926366406627969}
+  - component: {fileID: 7037350450619742130}
+  m_Layer: 0
+  m_Name: PuzzleColorActivationManager
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!4 &1153926366406627969
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1210888415897554289}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: 0, y: 0, z: 0}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 8940525277759302196}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!114 &7037350450619742130
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1210888415897554289}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: ea1719e6cc95fe644ade438f55552e38, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::PuzzleColorActivationManager
 --- !u!1 &1768674945214094607
 GameObject:
   m_ObjectHideFlags: 0
@@ -547,6 +591,7 @@ Transform:
   - {fileID: 2573128940137686699}
   - {fileID: 940968022365246782}
   - {fileID: 5655586140452433675}
+  - {fileID: 1153926366406627969}
   m_Father: {fileID: 0}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!1 &5174520264121873983
@@ -1113,6 +1158,10 @@ PrefabInstance:
       propertyPath: m_LocalEulerAnglesHint.z
       value: 0
       objectReference: {fileID: 0}
+    - target: {fileID: 4124596105869979733, guid: 6b9b5ca028a940c4ea73210b0f95cfba, type: 3}
+      propertyPath: activationManager
+      value: 
+      objectReference: {fileID: 7037350450619742130}
     - target: {fileID: 7228392347174423469, guid: 6b9b5ca028a940c4ea73210b0f95cfba, type: 3}
       propertyPath: m_Name
       value: PuzzlePlatform_Blue
@@ -1179,6 +1228,10 @@ PrefabInstance:
       propertyPath: m_Name
       value: PuzzlePlatform_Red
       objectReference: {fileID: 0}
+    - target: {fileID: 6256506843465833720, guid: 04973e4363449da4ea5d90c25652be75, type: 3}
+      propertyPath: activationManager
+      value: 
+      objectReference: {fileID: 7037350450619742130}
     m_RemovedComponents: []
     m_RemovedGameObjects: []
     m_AddedGameObjects: []
