@@ -61,6 +61,8 @@ MeshRenderer:
   m_RayTracingAccelStructBuildFlagsOverride: 0
   m_RayTracingAccelStructBuildFlags: 1
   m_SmallMeshCulling: 1
+  m_ForceMeshLod: -1
+  m_MeshLodSelectionBias: 0
   m_RenderingLayerMask: 1
   m_RendererPriority: 0
   m_Materials:
@@ -82,9 +84,11 @@ MeshRenderer:
   m_AutoUVMaxDistance: 0.5
   m_AutoUVMaxAngle: 89
   m_LightmapParameters: {fileID: 0}
+  m_GlobalIlluminationMeshLod: 0
   m_SortingLayerID: 0
   m_SortingLayer: 0
   m_SortingOrder: 0
+  m_MaskInteraction: 0
   m_AdditionalVertexStreams: {fileID: 0}
 --- !u!1 &1822816250158503910
 GameObject:
@@ -136,9 +140,10 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: a8832202bb5607045869ef11dd9ba814, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  move: {fileID: -1680190386980627800, guid: 052faaac586de48259a63d0c4782560b, type: 3}
-  interact: {fileID: 1781555164194001046, guid: 052faaac586de48259a63d0c4782560b, type: 3}
-  dash: {fileID: -4218216248627570075, guid: 052faaac586de48259a63d0c4782560b, type: 3}
+  move: {fileID: -1680190386980627800, guid: 8ba74d91b9c541b4ca7b0d870b11c1ae, type: 3}
+  interact: {fileID: 1781555164194001046, guid: 8ba74d91b9c541b4ca7b0d870b11c1ae, type: 3}
+  dash: {fileID: -8658464793882671611, guid: 8ba74d91b9c541b4ca7b0d870b11c1ae, type: 3}
+  jump: {fileID: -2099379676528639254, guid: 8ba74d91b9c541b4ca7b0d870b11c1ae, type: 3}
   extraActions: []
   logActionsOnInit: 1
   autoEnableOnStart: 1
@@ -183,17 +188,18 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   playerCameraPrefab: {fileID: 3891261490657805292, guid: 66b97270faa3d984fb3def78d94194ae, type: 3}
   playerCameraInstance: {fileID: 0}
-  moveSpeed: 5
+  moveSpeed: 77
   rotateSpeed: 15
   useCameraRelativeMove: 1
   moveReference: {fileID: 0}
   groundMask:
     serializedVersion: 2
-    m_Bits: 0
+    m_Bits: 1
   gravity: 20
   fallSpeedMax: 25
   groundStickVelocity: 2
   groundRayExtra: 0.15
+  jumpHeight: 2
   dashSpeed: 12
   dashDuration: 0.15
   dashCooldown: 1
@@ -324,6 +330,8 @@ MeshRenderer:
   m_RayTracingAccelStructBuildFlagsOverride: 0
   m_RayTracingAccelStructBuildFlags: 1
   m_SmallMeshCulling: 1
+  m_ForceMeshLod: -1
+  m_MeshLodSelectionBias: 0
   m_RenderingLayerMask: 1
   m_RendererPriority: 0
   m_Materials:
@@ -345,7 +353,9 @@ MeshRenderer:
   m_AutoUVMaxDistance: 0.5
   m_AutoUVMaxAngle: 89
   m_LightmapParameters: {fileID: 0}
+  m_GlobalIlluminationMeshLod: 0
   m_SortingLayerID: 0
   m_SortingLayer: 0
   m_SortingOrder: 0
+  m_MaskInteraction: 0
   m_AdditionalVertexStreams: {fileID: 0}

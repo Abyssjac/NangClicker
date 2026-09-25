@@ -25,6 +25,8 @@ public abstract class PuzzleTriggerSourceBase : PuzzleResettableBehaviour
     {
         if (isSourceTriggered)
             BroadcastTriggerState(true);
+
+        OnSourceTriggeredStateChanged(isSourceTriggered);
     }
 
     protected virtual void OnDisable()
@@ -48,6 +50,7 @@ public abstract class PuzzleTriggerSourceBase : PuzzleResettableBehaviour
 
         isSourceTriggered = triggered;
         BroadcastTriggerState(triggered);
+        OnSourceTriggeredStateChanged(triggered);
     }
 
     public override void ResetPuzzle()
@@ -65,5 +68,12 @@ public abstract class PuzzleTriggerSourceBase : PuzzleResettableBehaviour
             if (target != null)
                 target.SetTrigger(this, triggered);
         }
+    }
+
+    /// <summary>
+    /// Lets a concrete source synchronize its presentation with the same state sent to targets.
+    /// </summary>
+    protected virtual void OnSourceTriggeredStateChanged(bool triggered)
+    {
     }
 }

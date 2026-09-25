@@ -70,7 +70,7 @@ PrefabInstance:
       objectReference: {fileID: 11400000, guid: 2a5bd9c5ca474ff0a2c7b0a3752598bf, type: 2}
     - target: {fileID: 7292739574960922526, guid: 6d2e17855d1197545a326b1e823073f3, type: 3}
       propertyPath: defaultCameraMode
-      value: 20
+      value: 5
       objectReference: {fileID: 0}
     m_RemovedComponents: []
     m_RemovedGameObjects: []

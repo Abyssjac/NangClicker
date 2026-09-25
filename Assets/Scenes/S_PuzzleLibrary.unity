@@ -176,6 +176,90 @@ PrefabInstance:
     m_AddedGameObjects: []
     m_AddedComponents: []
   m_SourcePrefab: {fileID: 100100000, guid: e75d8a7c59d021d409d29e8fcb8c6182, type: 3}
+--- !u!1001 &472741864
+PrefabInstance:
+  m_ObjectHideFlags: 0
+  serializedVersion: 2
+  m_Modification:
+    serializedVersion: 3
+    m_TransformParent: {fileID: 0}
+    m_Modifications:
+    - target: {fileID: 2072409365070969654, guid: 7f6e0cfc94f070d41802023d94ed66fb, type: 3}
+      propertyPath: m_text
+      value: One-Shot Lever
+      objectReference: {fileID: 0}
+    - target: {fileID: 2072409365070969654, guid: 7f6e0cfc94f070d41802023d94ed66fb, type: 3}
+      propertyPath: m_fontColor32.rgba
+      value: 4281590015
+      objectReference: {fileID: 0}
+    - target: {fileID: 2072409365070969654, guid: 7f6e0cfc94f070d41802023d94ed66fb, type: 3}
+      propertyPath: m_TextStyleHashCode
+      value: -1183493901
+      objectReference: {fileID: 0}
+    - target: {fileID: 3756233708375496579, guid: 7f6e0cfc94f070d41802023d94ed66fb, type: 3}
+      propertyPath: leverMode
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 3756233708375496579, guid: 7f6e0cfc94f070d41802023d94ed66fb, type: 3}
+      propertyPath: targets.Array.size
+      value: 1
+      objectReference: {fileID: 0}
+    - target: {fileID: 3756233708375496579, guid: 7f6e0cfc94f070d41802023d94ed66fb, type: 3}
+      propertyPath: 'targets.Array.data[0]'
+      value: 
+      objectReference: {fileID: 1392769468}
+    - target: {fileID: 4898396574429609753, guid: 7f6e0cfc94f070d41802023d94ed66fb, type: 3}
+      propertyPath: m_LocalPosition.x
+      value: -8
+      objectReference: {fileID: 0}
+    - target: {fileID: 4898396574429609753, guid: 7f6e0cfc94f070d41802023d94ed66fb, type: 3}
+      propertyPath: m_LocalPosition.y
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 4898396574429609753, guid: 7f6e0cfc94f070d41802023d94ed66fb, type: 3}
+      propertyPath: m_LocalPosition.z
+      value: -3
+      objectReference: {fileID: 0}
+    - target: {fileID: 4898396574429609753, guid: 7f6e0cfc94f070d41802023d94ed66fb, type: 3}
+      propertyPath: m_LocalRotation.w
+      value: 1
+      objectReference: {fileID: 0}
+    - target: {fileID: 4898396574429609753, guid: 7f6e0cfc94f070d41802023d94ed66fb, type: 3}
+      propertyPath: m_LocalRotation.x
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 4898396574429609753, guid: 7f6e0cfc94f070d41802023d94ed66fb, type: 3}
+      propertyPath: m_LocalRotation.y
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 4898396574429609753, guid: 7f6e0cfc94f070d41802023d94ed66fb, type: 3}
+      propertyPath: m_LocalRotation.z
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 4898396574429609753, guid: 7f6e0cfc94f070d41802023d94ed66fb, type: 3}
+      propertyPath: m_LocalEulerAnglesHint.x
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 4898396574429609753, guid: 7f6e0cfc94f070d41802023d94ed66fb, type: 3}
+      propertyPath: m_LocalEulerAnglesHint.y
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 4898396574429609753, guid: 7f6e0cfc94f070d41802023d94ed66fb, type: 3}
+      propertyPath: m_LocalEulerAnglesHint.z
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 8192547367366496160, guid: 7f6e0cfc94f070d41802023d94ed66fb, type: 3}
+      propertyPath: m_Name
+      value: PuzzleLever_OneShot_Test
+      objectReference: {fileID: 0}
+    m_RemovedComponents: []
+    m_RemovedGameObjects: []
+    m_AddedGameObjects: []
+    m_AddedComponents:
+    - targetCorrespondingSourceObject: {fileID: 9075977410615832582, guid: 7f6e0cfc94f070d41802023d94ed66fb, type: 3}
+      insertIndex: -1
+      addedObject: {fileID: 0}
+  m_SourcePrefab: {fileID: 100100000, guid: 7f6e0cfc94f070d41802023d94ed66fb, type: 3}
 --- !u!1001 &589786045
 PrefabInstance:
   m_ObjectHideFlags: 0
@@ -237,6 +321,86 @@ PrefabInstance:
     m_AddedGameObjects: []
     m_AddedComponents: []
   m_SourcePrefab: {fileID: 100100000, guid: 037848c7f79b58c469a933bf82e4218a, type: 3}
+--- !u!1001 &635368560
+PrefabInstance:
+  m_ObjectHideFlags: 0
+  serializedVersion: 2
+  m_Modification:
+    serializedVersion: 3
+    m_TransformParent: {fileID: 0}
+    m_Modifications:
+    - target: {fileID: 2072409365070969654, guid: 7f6e0cfc94f070d41802023d94ed66fb, type: 3}
+      propertyPath: m_fontColor32.rgba
+      value: 4281590015
+      objectReference: {fileID: 0}
+    - target: {fileID: 2072409365070969654, guid: 7f6e0cfc94f070d41802023d94ed66fb, type: 3}
+      propertyPath: m_TextStyleHashCode
+      value: -1183493901
+      objectReference: {fileID: 0}
+    - target: {fileID: 3756233708375496579, guid: 7f6e0cfc94f070d41802023d94ed66fb, type: 3}
+      propertyPath: startsTriggered
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 3756233708375496579, guid: 7f6e0cfc94f070d41802023d94ed66fb, type: 3}
+      propertyPath: targets.Array.size
+      value: 1
+      objectReference: {fileID: 0}
+    - target: {fileID: 3756233708375496579, guid: 7f6e0cfc94f070d41802023d94ed66fb, type: 3}
+      propertyPath: 'targets.Array.data[0]'
+      value: 
+      objectReference: {fileID: 1347240233}
+    - target: {fileID: 4898396574429609753, guid: 7f6e0cfc94f070d41802023d94ed66fb, type: 3}
+      propertyPath: m_LocalPosition.x
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 4898396574429609753, guid: 7f6e0cfc94f070d41802023d94ed66fb, type: 3}
+      propertyPath: m_LocalPosition.y
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 4898396574429609753, guid: 7f6e0cfc94f070d41802023d94ed66fb, type: 3}
+      propertyPath: m_LocalPosition.z
+      value: -4
+      objectReference: {fileID: 0}
+    - target: {fileID: 4898396574429609753, guid: 7f6e0cfc94f070d41802023d94ed66fb, type: 3}
+      propertyPath: m_LocalRotation.w
+      value: 1
+      objectReference: {fileID: 0}
+    - target: {fileID: 4898396574429609753, guid: 7f6e0cfc94f070d41802023d94ed66fb, type: 3}
+      propertyPath: m_LocalRotation.x
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 4898396574429609753, guid: 7f6e0cfc94f070d41802023d94ed66fb, type: 3}
+      propertyPath: m_LocalRotation.y
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 4898396574429609753, guid: 7f6e0cfc94f070d41802023d94ed66fb, type: 3}
+      propertyPath: m_LocalRotation.z
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 4898396574429609753, guid: 7f6e0cfc94f070d41802023d94ed66fb, type: 3}
+      propertyPath: m_LocalEulerAnglesHint.x
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 4898396574429609753, guid: 7f6e0cfc94f070d41802023d94ed66fb, type: 3}
+      propertyPath: m_LocalEulerAnglesHint.y
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 4898396574429609753, guid: 7f6e0cfc94f070d41802023d94ed66fb, type: 3}
+      propertyPath: m_LocalEulerAnglesHint.z
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 8192547367366496160, guid: 7f6e0cfc94f070d41802023d94ed66fb, type: 3}
+      propertyPath: m_Name
+      value: PuzzleLever_Toggle_Test
+      objectReference: {fileID: 0}
+    m_RemovedComponents: []
+    m_RemovedGameObjects: []
+    m_AddedGameObjects: []
+    m_AddedComponents:
+    - targetCorrespondingSourceObject: {fileID: 9075977410615832582, guid: 7f6e0cfc94f070d41802023d94ed66fb, type: 3}
+      insertIndex: -1
+      addedObject: {fileID: 0}
+  m_SourcePrefab: {fileID: 100100000, guid: 7f6e0cfc94f070d41802023d94ed66fb, type: 3}
 --- !u!1 &1181099403
 GameObject:
   m_ObjectHideFlags: 0
@@ -281,6 +445,28 @@ Transform:
   m_Children: []
   m_Father: {fileID: 0}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!114 &1347240233 stripped
+MonoBehaviour:
+  m_CorrespondingSourceObject: {fileID: 6332908732938745543, guid: e75d8a7c59d021d409d29e8fcb8c6182, type: 3}
+  m_PrefabInstance: {fileID: 172794328}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 4e4fcffccc0376f4d8914a16682f00b6, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::PuzzleMovingPlatform
+--- !u!114 &1392769468 stripped
+MonoBehaviour:
+  m_CorrespondingSourceObject: {fileID: 752794045176571168, guid: b2ca3cdbe30e68e44a30e93c51fcb883, type: 3}
+  m_PrefabInstance: {fileID: 1431623555}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 6ce10ec933b6e114da4e58a2ef1eec68, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::PuzzleDoor
 --- !u!1001 &1431623555
 PrefabInstance:
   m_ObjectHideFlags: 0
@@ -404,3 +590,5 @@ SceneRoots:
   - {fileID: 1431623555}
   - {fileID: 172794328}
   - {fileID: 589786045}
+  - {fileID: 472741864}
+  - {fileID: 635368560}
