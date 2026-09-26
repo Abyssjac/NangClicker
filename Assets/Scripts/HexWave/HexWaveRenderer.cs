@@ -9,6 +9,7 @@ namespace NangClicker.HexWave
         [SerializeField] private bool interpolatePhysicsSnapshots = true;
         [Min(0.0001f)] [SerializeField] private float colorHeightRange = 1f;
         [SerializeField] private Gradient heightGradient = CreateDefaultGradient();
+        [SerializeField] private Color wallColor = new Color(0.16f, 0.18f, 0.22f, 1f);
         [SerializeField] private string colorPropertyName = "_BaseColor";
 
         private MaterialPropertyBlock propertyBlock;
@@ -60,6 +61,14 @@ namespace NangClicker.HexWave
                 if (cell == null)
                     continue;
 
+                if (manager.IsFixedBoundary(i))
+                {
+                    cell.ApplyHeight(0f);
+                    int wallPropertyId = ResolveColorProperty(cell);
+                    cell.ApplyColor(propertyBlock, wallPropertyId, wallColor);
+                    continue;
+                }
+
                 float height = Mathf.Lerp(
                     manager.GetPreviousHeight(i),
                     manager.GetCurrentHeight(i),
@@ -80,6 +89,29 @@ namespace NangClicker.HexWave
             colorHeightRange = Mathf.Max(0.0001f, heightRange);
             heightGradient = CreateDefaultGradient();
             RefreshPropertyIds();
+        }
+
+        public void RefreshBoundaryPreview()
+        {
+            if (manager == null)
+                manager = GetComponent<HexWaveManager>();
+
+            if (manager == null || !manager.IsInitialized)
+                return;
+
+            EnsurePropertyBlock();
+            RefreshPropertyIds();
+            Color restingColor = heightGradient.Evaluate(0.5f);
+
+            for (int i = 0; i < manager.CellCount; i++)
+            {
+                HexCellView cell = manager.GetCellView(i);
+                if (cell == null)
+                    continue;
+
+                Color color = manager.IsFixedBoundary(i) ? wallColor : restingColor;
+                cell.ApplyColor(propertyBlock, ResolveColorProperty(cell), color);
+            }
         }
 
         private int ResolveColorProperty(HexCellView cell)

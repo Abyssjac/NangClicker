@@ -4,6 +4,7 @@ using UnityEngine;
 
 namespace NangClicker.HexWave
 {
+    [DefaultExecutionOrder(-100)]
     [DisallowMultipleComponent]
     public sealed class HexWaveManager : MonoBehaviour
     {
@@ -65,6 +66,9 @@ namespace NangClicker.HexWave
         private float[] nextVelocities = Array.Empty<float>();
         private float[] forces = Array.Empty<float>();
         private bool initialized;
+        private int topologyVersion;
+
+        public event Action<HexWaveManager> TopologyRebuilt;
 
         public Transform CellsRoot => cellsRoot != null ? cellsRoot : transform;
         public HexCellView CellPrefab => cellPrefab;
@@ -72,6 +76,7 @@ namespace NangClicker.HexWave
         public float DefaultImpulse => defaultImpulse;
         public int CellCount => cells.Length;
         public bool IsInitialized => initialized;
+        public int TopologyVersion => topologyVersion;
 
         private void Awake()
         {
@@ -190,6 +195,8 @@ namespace NangClicker.HexWave
 
             pendingImpulses.Clear();
             initialized = true;
+            topologyVersion++;
+            TopologyRebuilt?.Invoke(this);
             return true;
         }
 
@@ -244,6 +251,11 @@ namespace NangClicker.HexWave
 
             cell = null;
             return false;
+        }
+
+        public bool TryGetCellIndex(HexCoordinate coordinate, out int index)
+        {
+            return coordinateToIndex.TryGetValue(coordinate, out index);
         }
 
         public HexCellView GetCellView(int index)

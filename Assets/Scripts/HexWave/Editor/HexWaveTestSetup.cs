@@ -13,6 +13,7 @@ namespace NangClicker.HexWave.Editor
         private const string MeshPath = PrefabFolder + "/HexColumnMesh.asset";
         private const string MaterialPath = PrefabFolder + "/HexColumnMaterial.mat";
         private const string PrefabPath = PrefabFolder + "/HexCell.prefab";
+        private const string EnemyStackPrefabPath = PrefabFolder + "/HexEnemyStack.prefab";
         private const string TestRootName = "Hex Wave Test";
 
         [MenuItem("Tools/Hex Wave/Create Test Setup In Active Scene")]
@@ -24,6 +25,7 @@ namespace NangClicker.HexWave.Editor
             Mesh mesh = GetOrCreateMesh();
             Material material = GetOrCreateMaterial();
             HexCellView prefab = GetOrCreatePrefab(mesh, material);
+            HexEnemyStackView enemyStackPrefab = GetOrCreateEnemyStackPrefab();
 
             GameObject existingRoot = GameObject.Find(TestRootName);
             if (existingRoot != null)
@@ -39,6 +41,8 @@ namespace NangClicker.HexWave.Editor
             HexWaveManager manager = root.AddComponent<HexWaveManager>();
             HexWaveRenderer waveRenderer = root.AddComponent<HexWaveRenderer>();
             HexWavePointerInput pointerInput = root.AddComponent<HexWavePointerInput>();
+            HexEnemyManager enemyManager = root.AddComponent<HexEnemyManager>();
+            HexEnemyVisualManager enemyVisualManager = root.AddComponent<HexEnemyVisualManager>();
 
             GameObject cellsObject = new GameObject("Cells");
             Undo.RegisterCreatedObjectUndo(cellsObject, "Create Hex Wave Cells Root");
@@ -49,10 +53,13 @@ namespace NangClicker.HexWave.Editor
             CreateHexagonGrid(manager, prefab, 5);
             manager.RebuildGrid();
             waveRenderer.Configure(manager, 1.25f);
+            HexWaveEditorVisuals.RefreshBoundaryPreview(manager);
 
             Camera camera = GetOrCreateCamera(root.transform);
             GetOrCreateLight(root.transform);
             pointerInput.Configure(manager, camera, manager.DefaultImpulse, true);
+            enemyManager.Configure(manager);
+            enemyVisualManager.Configure(enemyManager, manager, camera, enemyStackPrefab);
 
             Selection.activeGameObject = root;
             EditorUtility.SetDirty(root);
@@ -112,6 +119,19 @@ namespace NangClicker.HexWave.Editor
             GameObject prefab = PrefabUtility.SaveAsPrefabAsset(temporary, PrefabPath);
             Object.DestroyImmediate(temporary);
             return prefab.GetComponent<HexCellView>();
+        }
+
+        private static HexEnemyStackView GetOrCreateEnemyStackPrefab()
+        {
+            GameObject existingPrefab = AssetDatabase.LoadAssetAtPath<GameObject>(EnemyStackPrefabPath);
+            if (existingPrefab != null)
+                return existingPrefab.GetComponent<HexEnemyStackView>();
+
+            GameObject temporary = new GameObject("HexEnemyStack");
+            temporary.AddComponent<HexEnemyStackView>();
+            GameObject prefab = PrefabUtility.SaveAsPrefabAsset(temporary, EnemyStackPrefabPath);
+            Object.DestroyImmediate(temporary);
+            return prefab.GetComponent<HexEnemyStackView>();
         }
 
         private static Mesh GetOrCreateMesh()

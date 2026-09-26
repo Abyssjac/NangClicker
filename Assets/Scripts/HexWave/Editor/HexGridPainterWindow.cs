@@ -24,6 +24,11 @@ namespace NangClicker.HexWave.Editor
         {
             HexGridPainterWindow window = GetWindow<HexGridPainterWindow>("Hex Grid Painter");
             window.manager = targetManager;
+            if (targetManager != null && !Application.isPlaying)
+            {
+                targetManager.RebuildGrid();
+                HexWaveEditorVisuals.RefreshBoundaryPreview(targetManager);
+            }
             window.Show();
             window.Repaint();
         }
@@ -46,6 +51,7 @@ namespace NangClicker.HexWave.Editor
                 return;
 
             manager.RebuildGrid();
+            HexWaveEditorVisuals.RefreshBoundaryPreview(manager);
             EditorUtility.SetDirty(manager);
             Repaint();
             SceneView.RepaintAll();
@@ -81,6 +87,7 @@ namespace NangClicker.HexWave.Editor
             if (GUILayout.Button("Rebuild Topology And Boundary"))
             {
                 manager.RebuildGrid();
+                HexWaveEditorVisuals.RefreshBoundaryPreview(manager);
                 EditorUtility.SetDirty(manager);
                 SceneView.RepaintAll();
             }
@@ -170,6 +177,7 @@ namespace NangClicker.HexWave.Editor
         private void FinalizeGridChange()
         {
             manager.RebuildGrid();
+            HexWaveEditorVisuals.RefreshBoundaryPreview(manager);
             EditorUtility.SetDirty(manager);
             UnityEditor.SceneManagement.EditorSceneManager.MarkSceneDirty(manager.gameObject.scene);
             SceneView.RepaintAll();

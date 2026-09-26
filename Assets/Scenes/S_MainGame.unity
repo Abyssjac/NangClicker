@@ -4300,6 +4300,8 @@ GameObject:
   - component: {fileID: 1057721095}
   - component: {fileID: 1057721094}
   - component: {fileID: 1057721093}
+  - component: {fileID: 1057721098}
+  - component: {fileID: 1057721097}
   m_Layer: 0
   m_Name: Hex Wave Test
   m_TagString: Untagged
@@ -4375,6 +4377,7 @@ MonoBehaviour:
     m_ColorSpace: -1
     m_NumColorKeys: 3
     m_NumAlphaKeys: 2
+  wallColor: {r: 0.16, g: 0.18, b: 0.22, a: 1}
   colorPropertyName: _BaseColor
 --- !u!114 &1057721095
 MonoBehaviour:
@@ -4425,6 +4428,52 @@ Transform:
   - {fileID: 281943322}
   m_Father: {fileID: 0}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!114 &1057721097
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1057721092}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 2c03d50534978914ebec25e72179718f, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::NangClicker.HexWave.HexEnemyVisualManager
+  enemyManager: {fileID: 1057721098}
+  waveManager: {fileID: 1057721095}
+  billboardCamera: {fileID: 1952759176}
+  stackViewPrefab: {fileID: 618667112954168280, guid: eebc39804d6b6454b98e9d9ec666111b, type: 3}
+  enemyColor: {r: 0.92, g: 0.12, b: 0.12, a: 1}
+  textColor: {r: 1, g: 1, b: 1, a: 1}
+  columnTopLocalY: 1.5
+  sphereDiameter: 0.42
+  sphereGap: 0.04
+  textGap: 0.2
+--- !u!114 &1057721098
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1057721092}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 2e387a918b279604d83a8c321bbc3929, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::NangClicker.HexWave.HexEnemyManager
+  waveManager: {fileID: 1057721095}
+  enemyMaxHealth: 10
+  enemyStepSeconds: 3
+  enemyHurtStep: 0.1
+  spawnCountPerStep: 2
+  minSpawnDistance: 3
+  maxSpawnDistance: 4
+  minimumDamageHeight: 0.02
+  heightDamageScale: 10
+  initialTargetPoints: 20
+  useFixedRandomSeed: 1
+  randomSeed: 12345
 --- !u!1001 &1083057330
 PrefabInstance:
   m_ObjectHideFlags: 0

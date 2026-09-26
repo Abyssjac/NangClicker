@@ -17,6 +17,7 @@ namespace NangClicker.HexWave.Editor
             {
                 Undo.RecordObject(manager, "Rebuild Hex Wave Grid");
                 manager.RebuildGrid();
+                HexWaveEditorVisuals.RefreshBoundaryPreview(manager);
                 EditorUtility.SetDirty(manager);
                 SceneView.RepaintAll();
             }
