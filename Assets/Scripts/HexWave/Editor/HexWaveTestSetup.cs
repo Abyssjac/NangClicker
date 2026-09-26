@@ -14,6 +14,7 @@ namespace NangClicker.HexWave.Editor
         private const string MaterialPath = PrefabFolder + "/HexColumnMaterial.mat";
         private const string PrefabPath = PrefabFolder + "/HexCell.prefab";
         private const string EnemyStackPrefabPath = PrefabFolder + "/HexEnemyStack.prefab";
+        private const string EnemyMovePreviewMaterialPath = PrefabFolder + "/HexEnemyMovePreviewMaterial.mat";
         private const string TestRootName = "Hex Wave Test";
 
         [MenuItem("Tools/Hex Wave/Create Test Setup In Active Scene")]
@@ -24,6 +25,7 @@ namespace NangClicker.HexWave.Editor
 
             Mesh mesh = GetOrCreateMesh();
             Material material = GetOrCreateMaterial();
+            Material enemyMovePreviewMaterial = GetOrCreateEnemyMovePreviewMaterial();
             HexCellView prefab = GetOrCreatePrefab(mesh, material);
             HexEnemyStackView enemyStackPrefab = GetOrCreateEnemyStackPrefab();
 
@@ -59,7 +61,12 @@ namespace NangClicker.HexWave.Editor
             GetOrCreateLight(root.transform);
             pointerInput.Configure(manager, camera, manager.DefaultImpulse, true);
             enemyManager.Configure(manager);
-            enemyVisualManager.Configure(enemyManager, manager, camera, enemyStackPrefab);
+            enemyVisualManager.Configure(
+                enemyManager,
+                manager,
+                camera,
+                enemyStackPrefab,
+                enemyMovePreviewMaterial);
 
             Selection.activeGameObject = root;
             EditorUtility.SetDirty(root);
@@ -228,6 +235,31 @@ namespace NangClicker.HexWave.Editor
                 material.SetFloat("_Smoothness", 0.25f);
 
             AssetDatabase.CreateAsset(material, MaterialPath);
+            return material;
+        }
+
+        private static Material GetOrCreateEnemyMovePreviewMaterial()
+        {
+            Material existing = AssetDatabase.LoadAssetAtPath<Material>(EnemyMovePreviewMaterialPath);
+            if (existing != null)
+                return existing;
+
+            Shader shader = Shader.Find("Universal Render Pipeline/Unlit");
+            if (shader == null)
+                shader = Shader.Find("Standard");
+
+            Material material = new Material(shader)
+            {
+                name = "HexEnemyMovePreviewMaterial"
+            };
+            Color previewColor = new Color(1f, 0.08f, 0.04f, 0.42f);
+            if (material.HasProperty("_BaseColor"))
+                material.SetColor("_BaseColor", previewColor);
+            if (material.HasProperty("_Color"))
+                material.SetColor("_Color", previewColor);
+
+            HexEnemyVisualManager.ConfigureTransparentMaterial(material);
+            AssetDatabase.CreateAsset(material, EnemyMovePreviewMaterialPath);
             return material;
         }
 

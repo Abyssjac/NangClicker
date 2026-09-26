@@ -54,7 +54,7 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 6961653617491484666, guid: 6d2e17855d1197545a326b1e823073f3, type: 3}
       propertyPath: allDatabases.Array.size
-      value: 3
+      value: 0
       objectReference: {fileID: 0}
     - target: {fileID: 6961653617491484666, guid: 6d2e17855d1197545a326b1e823073f3, type: 3}
       propertyPath: 'allDatabases.Array.data[0]'

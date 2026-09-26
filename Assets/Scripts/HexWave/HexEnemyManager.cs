@@ -11,19 +11,25 @@ namespace NangClicker.HexWave
         public int Count { get; }
         public int TotalHealth { get; }
         public int DistanceToGoal { get; }
+        public bool HasPlannedMove { get; }
+        public HexCoordinate PlannedCoordinate { get; }
 
         public HexEnemyStackSnapshot(
             int id,
             HexCoordinate coordinate,
             int count,
             int totalHealth,
-            int distanceToGoal)
+            int distanceToGoal,
+            bool hasPlannedMove,
+            HexCoordinate plannedCoordinate)
         {
             Id = id;
             Coordinate = coordinate;
             Count = count;
             TotalHealth = totalHealth;
             DistanceToGoal = distanceToGoal;
+            HasPlannedMove = hasPlannedMove;
+            PlannedCoordinate = plannedCoordinate;
         }
     }
 
@@ -37,6 +43,8 @@ namespace NangClicker.HexWave
             public HexCoordinate Coordinate;
             public int Count;
             public int TotalHealth;
+            public bool HasPlannedMove;
+            public HexCoordinate PlannedCoordinate;
         }
 
         private const int MaxScheduledEventsPerFixedUpdate = 128;
@@ -99,6 +107,17 @@ namespace NangClicker.HexWave
         public int TotalReachedCount => totalReachedCount;
         public bool NavigationReady => navigationReady;
         public IReadOnlyList<HexEnemyStackSnapshot> CurrentSnapshot => snapshotBuffer;
+        public float EnemyStepProgress
+        {
+            get
+            {
+                if (enemyStepSeconds <= Mathf.Epsilon)
+                    return 1f;
+
+                double remaining = nextEnemyStepTime - simulationClock;
+                return 1f - Mathf.Clamp01((float)(remaining / enemyStepSeconds));
+            }
+        }
 
         public int TotalEnemyCount
         {
@@ -299,6 +318,7 @@ namespace NangClicker.HexWave
 
                 navigationReady = true;
                 ValidateExistingStacks();
+                PlanAllMoves();
                 return true;
             }
             finally
@@ -319,7 +339,10 @@ namespace NangClicker.HexWave
                 RebuildDistanceField();
 
             if (SpawnEnemies(spawnCountPerStep))
+            {
+                PlanMissingMoves();
                 PublishSnapshot();
+            }
         }
 
         [ContextMenu("Advance Enemy Step")]
@@ -385,9 +408,10 @@ namespace NangClicker.HexWave
             stepOrder.Sort(CompareStacksByDistance);
 
             for (int i = 0; i < stepOrder.Count; i++)
-                MoveStackTowardGoal(stepOrder[i]);
+                MoveStackAlongPlan(stepOrder[i]);
 
             SpawnEnemies(spawnCountPerStep);
+            PlanAllMoves();
             PublishSnapshot();
         }
 
@@ -401,7 +425,7 @@ namespace NangClicker.HexWave
                 : left.Coordinate.CompareTo(right.Coordinate);
         }
 
-        private void MoveStackTowardGoal(EnemyStackState stack)
+        private void MoveStackAlongPlan(EnemyStackState stack)
         {
             if (!stacksByCell.TryGetValue(stack.Coordinate, out EnemyStackState current) || current != stack)
                 return;
@@ -419,6 +443,86 @@ namespace NangClicker.HexWave
                 ResolveGoalArrival(stack);
                 return;
             }
+
+            if (!stack.HasPlannedMove)
+            {
+                Debug.LogError(
+                    $"[{nameof(HexEnemyManager)}] Enemy stack {stack.Id} at {stack.Coordinate} " +
+                    "has no planned move. It will remain in place until the next step.",
+                    this);
+                return;
+            }
+
+            HexCoordinate destination = stack.PlannedCoordinate;
+            bool destinationIsValid =
+                distanceField.TryGetValue(destination, out int destinationDistance) &&
+                destinationDistance == currentDistance - 1 &&
+                stack.Coordinate.DistanceTo(destination) == 1;
+
+            if (!destinationIsValid)
+            {
+                Debug.LogError(
+                    $"[{nameof(HexEnemyManager)}] Planned move for enemy stack {stack.Id} is no " +
+                    $"longer valid: {stack.Coordinate} -> {destination}. It will remain in place " +
+                    "until the next step.",
+                    this);
+                return;
+            }
+
+            HexCoordinate previousCoordinate = stack.Coordinate;
+            stacksByCell.Remove(previousCoordinate);
+            stack.HasPlannedMove = false;
+
+            if (destination == HexCoordinate.Origin)
+            {
+                stack.Coordinate = destination;
+                ResolveGoalArrival(stack);
+                return;
+            }
+
+            if (stacksByCell.TryGetValue(destination, out EnemyStackState destinationStack))
+            {
+                destinationStack.Count += stack.Count;
+                destinationStack.TotalHealth = SaturatingAdd(destinationStack.TotalHealth, stack.TotalHealth);
+                return;
+            }
+
+            stack.Coordinate = destination;
+            stacksByCell.Add(destination, stack);
+        }
+
+        private void PlanAllMoves()
+        {
+            stepOrder.Clear();
+            foreach (EnemyStackState stack in stacksByCell.Values)
+                stepOrder.Add(stack);
+
+            stepOrder.Sort(CompareStacksByDistance);
+            for (int i = 0; i < stepOrder.Count; i++)
+                PlanMove(stepOrder[i]);
+        }
+
+        private void PlanMissingMoves()
+        {
+            stepOrder.Clear();
+            foreach (EnemyStackState stack in stacksByCell.Values)
+            {
+                if (!stack.HasPlannedMove)
+                    stepOrder.Add(stack);
+            }
+
+            stepOrder.Sort(CompareStacksByDistance);
+            for (int i = 0; i < stepOrder.Count; i++)
+                PlanMove(stepOrder[i]);
+        }
+
+        private void PlanMove(EnemyStackState stack)
+        {
+            stack.HasPlannedMove = false;
+            stack.PlannedCoordinate = stack.Coordinate;
+
+            if (!distanceField.TryGetValue(stack.Coordinate, out int currentDistance) || currentDistance <= 0)
+                return;
 
             coordinateBuffer.Clear();
             int requiredDistance = currentDistance - 1;
@@ -441,26 +545,8 @@ namespace NangClicker.HexWave
                 return;
             }
 
-            HexCoordinate previousCoordinate = stack.Coordinate;
-            HexCoordinate destination = coordinateBuffer[random.Next(coordinateBuffer.Count)];
-            stacksByCell.Remove(previousCoordinate);
-
-            if (destination == HexCoordinate.Origin)
-            {
-                stack.Coordinate = destination;
-                ResolveGoalArrival(stack);
-                return;
-            }
-
-            if (stacksByCell.TryGetValue(destination, out EnemyStackState destinationStack))
-            {
-                destinationStack.Count += stack.Count;
-                destinationStack.TotalHealth = SaturatingAdd(destinationStack.TotalHealth, stack.TotalHealth);
-                return;
-            }
-
-            stack.Coordinate = destination;
-            stacksByCell.Add(destination, stack);
+            stack.PlannedCoordinate = coordinateBuffer[random.Next(coordinateBuffer.Count)];
+            stack.HasPlannedMove = true;
         }
 
         private void ResolveGoalArrival(EnemyStackState stack)
@@ -641,7 +727,9 @@ namespace NangClicker.HexWave
                         stack.Coordinate,
                         stack.Count,
                         stack.TotalHealth,
-                        distance));
+                        distance,
+                        stack.HasPlannedMove,
+                        stack.PlannedCoordinate));
             }
 
             StateChanged?.Invoke(snapshotBuffer);
