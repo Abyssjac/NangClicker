@@ -20,6 +20,24 @@ public class CameraDragController : MonoBehaviour, IReliedCameraComponent
     [Tooltip("When enabled, dragging the mouse right moves the viewed content right, like grabbing the scene directly.")]
     [SerializeField] private bool contentFollowsPointer = true;
 
+    [Header("Zoom (Pan Space Local Z)")]
+    [SerializeField] private bool enableZoom = true;
+
+    [Tooltip("World-space distance travelled per standard mouse-wheel step.")]
+    [Min(0f)]
+    [SerializeField] private float zoomSpeed = 3f;
+
+    [Tooltip("Closest distance the camera may reach from the Pan Space plane.")]
+    [Min(0.01f)]
+    [SerializeField] private float minZoomDistance = 18f;
+
+    [Tooltip("Farthest distance the camera may reach from the Pan Space plane.")]
+    [Min(0.01f)]
+    [SerializeField] private float maxZoomDistance = 55f;
+
+    [Tooltip("Keeps the point below the pointer stable while zooming whenever pan bounds allow it.")]
+    [SerializeField] private bool zoomTowardPointer = true;
+
     [Header("Scene View Gizmos")]
     [Tooltip("Master switch for all pan-bound gizmos.")]
     [SerializeField] private bool drawBoundsGizmo = true;
@@ -34,11 +52,16 @@ public class CameraDragController : MonoBehaviour, IReliedCameraComponent
     [SerializeField] private bool drawTotalCoverageArea = true;
 
     public CameraBase ReliedCamera => reliedCamera;
+    public float CurrentZoomDistance => panSpace != null
+        ? Mathf.Abs(panSpace.InverseTransformPoint(transform.position).z)
+        : 0f;
 
+    private const float ScrollUnitsPerStep = 120f;
     private Camera cachedCamera;
     private bool isDragging;
     private Vector3 lastDragPoint;
     private float lockedLocalDepth;
+    private float zoomDepthSign = -1f;
 
     private void Reset()
     {
@@ -56,12 +79,22 @@ public class CameraDragController : MonoBehaviour, IReliedCameraComponent
         isDragging = false;
 
         if (panSpace != null)
-            lockedLocalDepth = panSpace.InverseTransformPoint(transform.position).z;
+        {
+            CaptureCurrentDepth();
+            ClampZoomDistance();
+        }
     }
 
     private void OnDisable()
     {
         isDragging = false;
+    }
+
+    private void OnValidate()
+    {
+        zoomSpeed = Mathf.Max(0f, zoomSpeed);
+        minZoomDistance = Mathf.Max(0.01f, minZoomDistance);
+        maxZoomDistance = Mathf.Max(minZoomDistance, maxZoomDistance);
     }
 
     private void Update()
@@ -74,10 +107,18 @@ public class CameraDragController : MonoBehaviour, IReliedCameraComponent
             return;
 
         Vector2 pointerPosition = mouse.position.ReadValue();
+        bool pointerInsideViewport = IsInsideCameraViewport(pointerPosition);
+
+        if (enableZoom && pointerInsideViewport)
+        {
+            float scrollDelta = mouse.scroll.ReadValue().y;
+            if (Mathf.Abs(scrollDelta) > Mathf.Epsilon)
+                ZoomCamera(pointerPosition, scrollDelta / ScrollUnitsPerStep);
+        }
 
         if (!isDragging)
         {
-            if (mouse.middleButton.wasPressedThisFrame && IsInsideCameraViewport(pointerPosition))
+            if (mouse.middleButton.wasPressedThisFrame && pointerInsideViewport)
                 TryBeginDrag(pointerPosition);
 
             return;
@@ -115,13 +156,42 @@ public class CameraDragController : MonoBehaviour, IReliedCameraComponent
         ClampCurrentPosition();
     }
 
+    public void Configure(
+        CameraBase targetCamera,
+        Transform targetPanSpace,
+        Vector2 minPanPosition,
+        Vector2 maxPanPosition,
+        float closestZoomDistance,
+        float farthestZoomDistance,
+        float scrollZoomSpeed,
+        bool keepPointerAnchored = true)
+    {
+        reliedCamera = targetCamera;
+        panSpace = targetPanSpace;
+        minLocalPosition = minPanPosition;
+        maxLocalPosition = maxPanPosition;
+        minZoomDistance = Mathf.Max(0.01f, closestZoomDistance);
+        maxZoomDistance = Mathf.Max(minZoomDistance, farthestZoomDistance);
+        zoomSpeed = Mathf.Max(0f, scrollZoomSpeed);
+        zoomTowardPointer = keepPointerAnchored;
+
+        CacheReferences();
+        CaptureCurrentDepth();
+        ClampZoomDistance();
+        ClampCurrentPosition();
+    }
+
     /// <summary>
     /// Re-captures the fixed local Z depth after another system positions the camera.
     /// </summary>
     public void CaptureCurrentDepth()
     {
         if (panSpace != null)
+        {
             lockedLocalDepth = panSpace.InverseTransformPoint(transform.position).z;
+            if (Mathf.Abs(lockedLocalDepth) > Mathf.Epsilon)
+                zoomDepthSign = Mathf.Sign(lockedLocalDepth);
+        }
     }
 
     private void CacheReferences()
@@ -171,6 +241,57 @@ public class CameraDragController : MonoBehaviour, IReliedCameraComponent
         localPosition.y = Mathf.Clamp(localPosition.y, Mathf.Min(minLocalPosition.y, maxLocalPosition.y), Mathf.Max(minLocalPosition.y, maxLocalPosition.y));
         localPosition.z = lockedLocalDepth;
 
+        transform.position = panSpace.TransformPoint(localPosition);
+    }
+
+    private void ZoomCamera(Vector2 pointerPosition, float scrollSteps)
+    {
+        if (Mathf.Abs(scrollSteps) <= Mathf.Epsilon || panSpace == null)
+            return;
+
+        Vector3 anchorBeforeZoom = default;
+        bool hasAnchor = zoomTowardPointer && TryGetDragPoint(pointerPosition, out anchorBeforeZoom);
+        Vector3 localPosition = panSpace.InverseTransformPoint(transform.position);
+        float currentDistance = Mathf.Abs(localPosition.z);
+        float newDistance = Mathf.Clamp(
+            currentDistance - scrollSteps * zoomSpeed,
+            minZoomDistance,
+            maxZoomDistance);
+
+        if (Mathf.Approximately(currentDistance, newDistance))
+            return;
+
+        if (Mathf.Abs(localPosition.z) > Mathf.Epsilon)
+            zoomDepthSign = Mathf.Sign(localPosition.z);
+
+        localPosition.z = zoomDepthSign * newDistance;
+        transform.position = panSpace.TransformPoint(localPosition);
+        lockedLocalDepth = localPosition.z;
+
+        if (hasAnchor && TryGetDragPoint(pointerPosition, out Vector3 anchorAfterZoom))
+            PanCamera(anchorBeforeZoom - anchorAfterZoom);
+        else
+            ClampCurrentPosition();
+
+        if (isDragging && !TryGetDragPoint(pointerPosition, out lastDragPoint))
+            isDragging = false;
+    }
+
+    private void ClampZoomDistance()
+    {
+        if (panSpace == null)
+            return;
+
+        Vector3 localPosition = panSpace.InverseTransformPoint(transform.position);
+        if (Mathf.Abs(localPosition.z) > Mathf.Epsilon)
+            zoomDepthSign = Mathf.Sign(localPosition.z);
+
+        float distance = Mathf.Clamp(
+            Mathf.Abs(localPosition.z),
+            minZoomDistance,
+            maxZoomDistance);
+        localPosition.z = zoomDepthSign * distance;
+        lockedLocalDepth = localPosition.z;
         transform.position = panSpace.TransformPoint(localPosition);
     }
 

@@ -16,6 +16,7 @@ namespace NangClicker.HexWave.Editor
         private const string EnemyStackPrefabPath = PrefabFolder + "/HexEnemyStack.prefab";
         private const string EnemyMovePreviewMaterialPath = PrefabFolder + "/HexEnemyMovePreviewMaterial.mat";
         private const string TestRootName = "Hex Wave Test";
+        private const string CameraPanSpaceName = "Hex Camera Pan Space";
 
         [MenuItem("Tools/Hex Wave/Create Test Setup In Active Scene")]
         public static void CreateTestSetup()
@@ -28,6 +29,7 @@ namespace NangClicker.HexWave.Editor
             Material enemyMovePreviewMaterial = GetOrCreateEnemyMovePreviewMaterial();
             HexCellView prefab = GetOrCreatePrefab(mesh, material);
             HexEnemyStackView enemyStackPrefab = GetOrCreateEnemyStackPrefab();
+            HexGameUIFactory.GetOrCreatePrefab();
 
             GameObject existingRoot = GameObject.Find(TestRootName);
             if (existingRoot != null)
@@ -67,6 +69,7 @@ namespace NangClicker.HexWave.Editor
                 camera,
                 enemyStackPrefab,
                 enemyMovePreviewMaterial);
+            HexGameUIFactory.InstantiateGameUI(root.transform, enemyManager);
 
             Selection.activeGameObject = root;
             EditorUtility.SetDirty(root);
@@ -267,7 +270,7 @@ namespace NangClicker.HexWave.Editor
         {
             Camera camera = Object.FindFirstObjectByType<Camera>();
             if (camera != null)
-                return camera;
+                return ConfigureCameraSystem(camera, parent);
 
             GameObject cameraObject = new GameObject("Hex Wave Test Camera");
             Undo.RegisterCreatedObjectUndo(cameraObject, "Create Hex Wave Test Camera");
@@ -277,6 +280,58 @@ namespace NangClicker.HexWave.Editor
             cameraObject.transform.LookAt(new Vector3(0f, 0.5f, 0f));
             camera = cameraObject.AddComponent<Camera>();
             camera.fieldOfView = 50f;
+            return ConfigureCameraSystem(camera, parent);
+        }
+
+        private static Camera ConfigureCameraSystem(Camera camera, Transform parent)
+        {
+            Transform panSpace = parent.Find(CameraPanSpaceName);
+            if (panSpace == null)
+            {
+                GameObject panSpaceObject = new GameObject(CameraPanSpaceName);
+                Undo.RegisterCreatedObjectUndo(panSpaceObject, "Create Hex Camera Pan Space");
+                panSpace = panSpaceObject.transform;
+                panSpace.SetParent(parent, false);
+            }
+
+            Plane gridPlane = new Plane(parent.up, parent.position);
+            Ray cameraRay = new Ray(camera.transform.position, camera.transform.forward);
+            panSpace.position = gridPlane.Raycast(cameraRay, out float enter)
+                ? cameraRay.GetPoint(enter)
+                : parent.position;
+            panSpace.rotation = camera.transform.rotation;
+
+            CameraBase cameraBase = camera.GetComponent<CameraBase>();
+            if (cameraBase == null)
+                cameraBase = Undo.AddComponent<CameraBase>(camera.gameObject);
+
+            CameraDragController dragController = camera.GetComponent<CameraDragController>();
+            if (dragController == null)
+                dragController = Undo.AddComponent<CameraDragController>(camera.gameObject);
+
+            dragController.Configure(
+                cameraBase,
+                panSpace,
+                new Vector2(-6f, -5f),
+                new Vector2(6f, 5f),
+                18f,
+                55f,
+                3f,
+                true);
+
+            SerializedObject serializedCameraBase = new SerializedObject(cameraBase);
+            serializedCameraBase.FindProperty("cameraMode").intValue = (int)CameraMode.Game_PlayerView;
+            serializedCameraBase.FindProperty("activationPolicy").intValue = (int)CameraActivationPolicy.ModeBound;
+            serializedCameraBase.FindProperty("deactivateSelfComponent").boolValue = true;
+            SerializedProperty reliedComponents = serializedCameraBase.FindProperty("reliedCameraComponents");
+            reliedComponents.arraySize = 1;
+            reliedComponents.GetArrayElementAtIndex(0).objectReferenceValue = dragController;
+            serializedCameraBase.ApplyModifiedPropertiesWithoutUndo();
+
+            camera.gameObject.tag = "MainCamera";
+            EditorUtility.SetDirty(cameraBase);
+            EditorUtility.SetDirty(dragController);
+            EditorUtility.SetDirty(panSpace);
             return camera;
         }
 

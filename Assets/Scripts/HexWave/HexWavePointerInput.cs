@@ -33,9 +33,6 @@ namespace NangClicker.HexWave
             if (manager == null)
                 return;
 
-            if (Input.GetKeyDown(KeyCode.Space))
-                manager.EnqueueImpulse(HexCoordinate.Origin, impulse);
-
             if (!Input.GetMouseButtonDown(0) || inputCamera == null)
                 return;
 

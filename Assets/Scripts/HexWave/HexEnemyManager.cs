@@ -97,12 +97,14 @@ namespace NangClicker.HexWave
 
         public event Action<IReadOnlyList<HexEnemyStackSnapshot>> StateChanged;
         public event Action<int> EnemiesReachedGoal;
+        public event Action<int, int> TargetPointsChanged;
         public event Action TargetDepleted;
 
         public HexWaveManager WaveManager => waveManager;
         public int StackCount => stacksByCell.Count;
         public int SpawnCandidateCount => spawnCandidates.Count;
         public int ReachableCellCount => distanceField.Count;
+        public int InitialTargetPoints => initialTargetPoints;
         public int TargetPointsRemaining => targetPointsRemaining;
         public int TotalReachedCount => totalReachedCount;
         public bool NavigationReady => navigationReady;
@@ -371,6 +373,7 @@ namespace NangClicker.HexWave
             catchUpWarningIssued = false;
             ResetRandom();
             ResetClock();
+            TargetPointsChanged?.Invoke(targetPointsRemaining, initialTargetPoints);
             PublishSnapshot();
         }
 
@@ -556,6 +559,7 @@ namespace NangClicker.HexWave
             targetPointsRemaining = Mathf.Max(0, targetPointsRemaining - stack.Count);
             totalReachedCount = SaturatingAdd(totalReachedCount, stack.Count);
             EnemiesReachedGoal?.Invoke(stack.Count);
+            TargetPointsChanged?.Invoke(targetPointsRemaining, initialTargetPoints);
 
             if (previousTargetPoints > 0 && targetPointsRemaining == 0)
                 TargetDepleted?.Invoke();
