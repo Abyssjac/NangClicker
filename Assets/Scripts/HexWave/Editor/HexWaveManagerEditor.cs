@@ -42,7 +42,7 @@ namespace NangClicker.HexWave.Editor
             }
 
             EditorGUILayout.HelpBox(
-                "Any cell missing one or more of its six neighbors is treated as a fixed boundary.",
+                "Authored Wall cells and cells missing neighbors are fixed. Rebuilding topology resets all active waves. Use Grid Painter Wall/Floor to author walls.",
                 MessageType.None);
         }
     }

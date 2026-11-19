@@ -67,6 +67,20 @@ namespace NangClicker.HexWave
         private float[] forces = Array.Empty<float>();
         private bool initialized;
         private int topologyVersion;
+        private readonly List<HexSpellWave> spellWaves = new List<HexSpellWave>();
+        private float[] spellHeights = Array.Empty<float>();
+        private float[] spellVelocities = Array.Empty<float>();
+        public int ActiveWaveCount => spellWaves.Count;
+        public int PendingCastCount
+        {
+            get { int count = 0; foreach (var wave in spellWaves) if (wave.PendingEventCount > 0) count++; return count; }
+        }
+        public HexWaveSettings SimulationSettings => new HexWaveSettings
+        {
+            mass = mass, kOrigin = kOrigin, cOrigin = cOrigin, kNeighbor = kNeighbor, cNeighbor = cNeighbor,
+            sleepHeight = sleepHeightThreshold, sleepVelocity = sleepVelocityThreshold,
+            sleepSteps = sleepSteps, minimumSubsteps = physicsSubsteps
+        };
 
         public event Action<HexWaveManager> TopologyRebuilt;
 
@@ -85,18 +99,49 @@ namespace NangClicker.HexWave
 
         private void FixedUpdate()
         {
+            AdvanceSimulation(Time.fixedDeltaTime);
+        }
+
+        public void AdvanceSimulation(float deltaTime)
+        {
+            if (deltaTime <= 0f) return;
             if (!initialized && !RebuildGrid())
                 return;
 
             if (cells.Length == 0)
                 return;
 
-            Array.Copy(heights, previousHeights, heights.Length);
+            for (int i = 0; i < cells.Length; i++) previousHeights[i] = GetCurrentHeight(i);
             ConsumePendingImpulses();
 
-            float substepDeltaTime = Time.fixedDeltaTime / physicsSubsteps;
+            float substepDeltaTime = deltaTime / physicsSubsteps;
             for (int step = 0; step < physicsSubsteps; step++)
                 SimulateSubstep(substepDeltaTime);
+            Array.Clear(spellHeights, 0, spellHeights.Length);
+            Array.Clear(spellVelocities, 0, spellVelocities.Length);
+            for (int w = spellWaves.Count - 1; w >= 0; w--)
+            {
+                HexSpellWave wave = spellWaves[w];
+                wave.Step(deltaTime);
+                for (int j = 0; j < wave.CellCount; j++)
+                    if (coordinateToIndex.TryGetValue(wave.GetCoordinate(j), out int i))
+                    { spellHeights[i] += wave.GetHeight(j); spellVelocities[i] += wave.GetVelocity(j); }
+                if (wave.IsFinished) spellWaves.RemoveAt(w);
+            }
+        }
+
+        public bool IsMovable(HexCoordinate coordinate) =>
+            coordinateToIndex.TryGetValue(coordinate, out int i) && !fixedBoundary[i];
+
+        public bool CastSpell(HexSpellProperty spell, HexCoordinate origin, int direction, float multiplier = 1f)
+        {
+            if (!initialized && !RebuildGrid()) return false;
+            if (spell == null || !spell.Validate(out _) || !IsMovable(origin) ||
+                float.IsNaN(multiplier) || float.IsInfinity(multiplier)) return false;
+            var wave = new HexSpellWave(spell, origin, direction, multiplier, SimulationSettings, IsMovable);
+            if (wave.IsFinished) return false;
+            spellWaves.Add(wave);
+            return true;
         }
 
         private void OnValidate()
@@ -165,6 +210,9 @@ namespace NangClicker.HexWave
             nextHeights = new float[count];
             nextVelocities = new float[count];
             forces = new float[count];
+            spellHeights = new float[count];
+            spellVelocities = new float[count];
+            spellWaves.Clear();
 
             for (int i = 0; i < count; i++)
             {
@@ -185,11 +233,11 @@ namespace NangClicker.HexWave
                     }
                 }
 
-                fixedBoundary[i] = boundary;
-                sleeping[i] = boundary;
+                fixedBoundary[i] = boundary || cells[i].IsWall;
+                sleeping[i] = fixedBoundary[i];
                 if (!Application.isPlaying || !initialized)
                     cells[i].CaptureBaseLocalPosition();
-                cells[i].SetRuntimeBinding(i, boundary);
+                cells[i].SetRuntimeBinding(i, fixedBoundary[i]);
                 cells[i].ApplyHeight(0f);
             }
 
@@ -204,6 +252,9 @@ namespace NangClicker.HexWave
         {
             if (!initialized)
                 return;
+            spellWaves.Clear();
+            Array.Clear(spellHeights, 0, spellHeights.Length);
+            Array.Clear(spellVelocities, 0, spellVelocities.Length);
 
             Array.Clear(heights, 0, heights.Length);
             Array.Clear(previousHeights, 0, previousHeights.Length);
@@ -265,7 +316,7 @@ namespace NangClicker.HexWave
 
         public float GetCurrentHeight(int index)
         {
-            return index >= 0 && index < heights.Length ? heights[index] : 0f;
+            return index >= 0 && index < heights.Length ? heights[index] + spellHeights[index] : 0f;
         }
 
         public float GetPreviousHeight(int index)
@@ -275,7 +326,7 @@ namespace NangClicker.HexWave
 
         public float GetVelocity(int index)
         {
-            return index >= 0 && index < velocities.Length ? velocities[index] : 0f;
+            return index >= 0 && index < velocities.Length ? velocities[index] + spellVelocities[index] : 0f;
         }
 
         public bool IsFixedBoundary(int index)
@@ -285,7 +336,8 @@ namespace NangClicker.HexWave
 
         public bool IsSleeping(int index)
         {
-            return index >= 0 && index < sleeping.Length && sleeping[index];
+            return index >= 0 && index < sleeping.Length && sleeping[index] &&
+                Mathf.Abs(spellHeights[index]) <= sleepHeightThreshold && Mathf.Abs(spellVelocities[index]) <= sleepVelocityThreshold;
         }
 
         public float GetTotalMechanicalEnergy()
@@ -310,6 +362,7 @@ namespace NangClicker.HexWave
                 energy += 0.5f * kNeighbor * difference * difference;
             }
 
+            foreach (var wave in spellWaves) energy += wave.MechanicalEnergy;
             return energy;
         }
 

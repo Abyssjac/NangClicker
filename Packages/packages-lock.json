@@ -4,7 +4,11 @@
       "version": "file:E:/Git docs/AbyssToolKitUnity",
       "depth": 0,
       "source": "local",
-      "dependencies": {}
+      "dependencies": {
+        "com.unity.ugui": "2.0.0",
+        "com.unity.inputsystem": "1.20.1",
+        "com.unity.render-pipelines.universal": "17.6.0"
+      }
     },
     "com.coplaydev.unity-mcp": {
       "version": "https://github.com/CoplayDev/unity-mcp.git?path=/MCPForUnity#main",
@@ -87,8 +91,8 @@
       "url": "https://packages.unity.com"
     },
     "com.unity.inputsystem": {
-      "version": "1.19.0",
-      "depth": 0,
+      "version": "1.20.1",
+      "depth": 1,
       "source": "registry",
       "dependencies": {
         "com.unity.modules.uielements": "1.0.0"

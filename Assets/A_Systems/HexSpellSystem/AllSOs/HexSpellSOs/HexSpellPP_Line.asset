@@ -1,0 +1,97 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: fd397d0902459e64e89e0b5030783a81, type: 3}
+  m_Name: HexSpellPP_Line
+  m_EditorClassIdentifier: Assembly-CSharp::NangClicker.HexWave.HexSpellProperty
+  enumKey: 1
+  stringKey: 
+  displayName: Line Strike
+  description: Four direct impulses; anchor is the leftmost red hex.
+  icon: {fileID: 0}
+  strength: 1
+  edgeMode: 0
+  edgeDamping: 5
+  absorptionWidth: 2
+  region:
+  - a: -1
+    b: 0
+    c: 1
+  - a: -1
+    b: 1
+    c: 0
+  - a: 0
+    b: -1
+    c: 1
+  - a: 0
+    b: 0
+    c: 0
+  - a: 0
+    b: 1
+    c: -1
+  - a: 1
+    b: -1
+    c: 0
+  - a: 1
+    b: 0
+    c: -1
+  - a: 1
+    b: 1
+    c: -2
+  - a: 2
+    b: -1
+    c: -1
+  - a: 2
+    b: 0
+    c: -2
+  - a: 2
+    b: 1
+    c: -3
+  - a: 3
+    b: -1
+    c: -2
+  - a: 3
+    b: 0
+    c: -3
+  - a: 3
+    b: 1
+    c: -4
+  - a: 4
+    b: -1
+    c: -3
+  - a: 4
+    b: 0
+    c: -4
+  impulses:
+  - offset:
+      a: 0
+      b: 0
+      c: 0
+    time: 0
+    impulse: 8
+  - offset:
+      a: 1
+      b: 0
+      c: -1
+    time: 0
+    impulse: 8
+  - offset:
+      a: 2
+      b: 0
+      c: -2
+    time: 0
+    impulse: 8
+  - offset:
+      a: 3
+      b: 0
+      c: -3
+    time: 0
+    impulse: 8

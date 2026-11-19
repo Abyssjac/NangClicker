@@ -55,6 +55,16 @@ namespace NangClicker.HexWave
             return this + GetNeighborDirection(directionIndex);
         }
 
+        /// <summary>Clockwise 60-degree steps in the map X/Z plane; six steps are identity.</summary>
+        public HexCoordinate Rotate(int steps)
+        {
+            HexCoordinate result = this;
+            steps = (steps % 6 + 6) % 6;
+            for (int i = 0; i < steps; i++)
+                result = new HexCoordinate(-result.C, -result.A, -result.B);
+            return result;
+        }
+
         public int DistanceTo(HexCoordinate other)
         {
             int da = Mathf.Abs(a - other.a);

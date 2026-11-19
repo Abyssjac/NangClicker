@@ -54,12 +54,12 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 6961653617491484666, guid: 6d2e17855d1197545a326b1e823073f3, type: 3}
       propertyPath: allDatabases.Array.size
-      value: 0
+      value: 1
       objectReference: {fileID: 0}
     - target: {fileID: 6961653617491484666, guid: 6d2e17855d1197545a326b1e823073f3, type: 3}
       propertyPath: 'allDatabases.Array.data[0]'
       value: 
-      objectReference: {fileID: 11400000, guid: 9938939e24257844f8c0c89ddbb8999a, type: 2}
+      objectReference: {fileID: 11400000, guid: b2ecd2c002ae76b46ad8e1c9ad7848ac, type: 2}
     - target: {fileID: 6961653617491484666, guid: 6d2e17855d1197545a326b1e823073f3, type: 3}
       propertyPath: 'allDatabases.Array.data[1]'
       value: 
@@ -68,12 +68,30 @@ PrefabInstance:
       propertyPath: 'allDatabases.Array.data[2]'
       value: 
       objectReference: {fileID: 11400000, guid: 2a5bd9c5ca474ff0a2c7b0a3752598bf, type: 2}
-    - target: {fileID: 7292739574960922526, guid: 6d2e17855d1197545a326b1e823073f3, type: 3}
-      propertyPath: defaultCameraMode
-      value: 20
-      objectReference: {fileID: 0}
-    m_RemovedComponents: []
+    m_RemovedComponents:
+    - {fileID: 7292739574960922526, guid: 6d2e17855d1197545a326b1e823073f3, type: 3}
     m_RemovedGameObjects: []
     m_AddedGameObjects: []
-    m_AddedComponents: []
+    m_AddedComponents:
+    - targetCorrespondingSourceObject: {fileID: 233144074376067813, guid: 6d2e17855d1197545a326b1e823073f3, type: 3}
+      insertIndex: -1
+      addedObject: {fileID: 694763122728845001}
   m_SourcePrefab: {fileID: 100100000, guid: 6d2e17855d1197545a326b1e823073f3, type: 3}
+--- !u!1 &4112564721625983497 stripped
+GameObject:
+  m_CorrespondingSourceObject: {fileID: 233144074376067813, guid: 6d2e17855d1197545a326b1e823073f3, type: 3}
+  m_PrefabInstance: {fileID: 4192438523149537516}
+  m_PrefabAsset: {fileID: 0}
+--- !u!114 &694763122728845001
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 4112564721625983497}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: a8c61c64bc156f24a9beacd33f8cb9fc, type: 3}
+  m_Name:
+  m_EditorClassIdentifier: Abyss.General.Runtime::AllCameraManager
+  defaultCameraMode: 20

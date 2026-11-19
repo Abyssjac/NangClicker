@@ -22138,6 +22138,9 @@ GameObject:
   - component: {fileID: 1057721093}
   - component: {fileID: 1057721098}
   - component: {fileID: 1057721097}
+  - component: {fileID: 1057721101}
+  - component: {fileID: 1057721100}
+  - component: {fileID: 1057721099}
   m_Layer: 0
   m_Name: Hex Wave Test
   m_TagString: Untagged
@@ -22152,7 +22155,7 @@ MonoBehaviour:
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 1057721092}
-  m_Enabled: 1
+  m_Enabled: 0
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: e0fd27cc85ef2d44d8ae25df4540db6d, type: 3}
   m_Name: 
@@ -22274,7 +22277,7 @@ MonoBehaviour:
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 1057721092}
-  m_Enabled: 1
+  m_Enabled: 0
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: 2c03d50534978914ebec25e72179718f, type: 3}
   m_Name: 
@@ -22305,7 +22308,7 @@ MonoBehaviour:
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 1057721092}
-  m_Enabled: 1
+  m_Enabled: 0
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: 2e387a918b279604d83a8c321bbc3929, type: 3}
   m_Name: 
@@ -22322,6 +22325,53 @@ MonoBehaviour:
   initialTargetPoints: 20
   useFixedRandomSeed: 1
   randomSeed: 12345
+--- !u!114 &1057721099
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1057721092}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: dfc51be0f8da095468f53986302d8a34, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::NangClicker.HexWave.HexSpellTestUI
+  manager: {fileID: 0}
+--- !u!114 &1057721100
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1057721092}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 34abe71d594ace44385a0354fb3ad1ff, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::NangClicker.HexWave.SpellManager
+  waveManager: {fileID: 1057721095}
+  inputCamera: {fileID: 1952759176}
+  preview: {fileID: 1057721101}
+  slots: 0100000002000000
+  selectedSlot: 0
+  direction: 0
+  strengthMultiplier: 1
+--- !u!114 &1057721101
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1057721092}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 6d926e40bcede7c46aa3256d9e3caa7f, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::NangClicker.HexWave.HexSpellPreviewRenderer
+  overlayMaterial: {fileID: 2100000, guid: 68b1fc5d483e692439f535597d0938b5, type: 2}
+  sphereFieldMaterial: {fileID: 2100000, guid: 201d4c0138d1d564cb0bc8ce83ff9ae3, type: 2}
+  showEventLabels: 1
 --- !u!1001 &1074210924
 PrefabInstance:
   m_ObjectHideFlags: 0
@@ -33685,12 +33735,12 @@ PrefabInstance:
     m_Modifications:
     - target: {fileID: 387651210900453539, guid: 045d94b652ac71d4f9814ed5218eab0d, type: 3}
       propertyPath: m_text
-      value: "OBJECTIVE\n\nStop enemies from reaching the center.\n\nClick a hex
-        to send a wave through the grid.\nMoving hexes damage enemies standing on
-        them.\n\nEnemies that reach the center damage your Base.\nIf Base HP reaches
-        0, you lose.\n\nCONTROLS\n\nLeft Click \u2014 Attack a Hex\nMiddle Mouse
-        Drag \u2014 Move Camera\nMouse Wheel \u2014 Zoom\nI \u2014 Toggle Guide\nAlt+R
-        \u2014  Restart Game"
+      value: "OBJECTIVE\n\nStop enemies from reaching the center.\n\nSelect a spell
+        below, rotate its direction, then click a floor hex to cast.\nMoving hexes
+        damage enemies standing on them.\n\nEnemies reaching the center damage your
+        Base.\nBase HP 0 means defeat.\n\nCONTROLS\n\nLeft Click \u2014 Cast selected
+        spell\nMiddle Mouse Drag \u2014 Move Camera\nMouse Wheel \u2014 Zoom\nI \u2014
+        Toggle Guide\nAlt+R \u2014 Restart Game"
       objectReference: {fileID: 0}
     - target: {fileID: 387651210900453539, guid: 045d94b652ac71d4f9814ed5218eab0d, type: 3}
       propertyPath: m_TextStyleHashCode
@@ -39648,11 +39698,10 @@ MonoBehaviour:
   m_GameObject: {fileID: 1952759175}
   m_Enabled: 1
   m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 145b0e1af66b8634a9c0d6ab9c4fff1f, type: 3}
+  m_Script: {fileID: 11500000, guid: fafcae57df8dac54b99a383be3d1bcfa, type: 3}
   m_Name: 
-  m_EditorClassIdentifier: Assembly-CSharp::CameraBase
+  m_EditorClassIdentifier: Abyss.General.Runtime::CameraBase
   cameraMode: 20
-  activationPolicy: 0
   reliedCameraComponents:
   - {fileID: 1952759179}
   deactivateSelfComponent: 1

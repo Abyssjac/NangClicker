@@ -8,7 +8,9 @@ namespace NangClicker.HexWave.Editor
         private enum PaintMode
         {
             Add,
-            Erase
+            Erase,
+            Wall,
+            Floor
         }
 
         [SerializeField] private HexWaveManager manager;
@@ -65,7 +67,7 @@ namespace NangClicker.HexWave.Editor
                 typeof(HexWaveManager),
                 true);
 
-            paintMode = (PaintMode)GUILayout.Toolbar((int)paintMode, new[] { "Add", "Erase" });
+            paintMode = (PaintMode)GUILayout.Toolbar((int)paintMode, new[] { "Add", "Erase", "Wall", "Floor" });
 
             if (manager == null)
             {
@@ -121,8 +123,20 @@ namespace NangClicker.HexWave.Editor
 
             if (paintMode == PaintMode.Add)
                 AddCell(coordinate);
-            else
+            else if (paintMode == PaintMode.Erase)
                 EraseCell(coordinate);
+            else
+            {
+                HexCellView cell = FindCell(coordinate);
+                if (cell != null && cell.IsWall != (paintMode == PaintMode.Wall))
+                {
+                    Undo.RecordObject(cell, "Paint Hex Wall");
+                    cell.SetWall(paintMode == PaintMode.Wall);
+                    PrefabUtility.RecordPrefabInstancePropertyModifications(cell);
+                    EditorUtility.SetDirty(cell);
+                    FinalizeGridChange();
+                }
+            }
 
             currentEvent.Use();
         }
