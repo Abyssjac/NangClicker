@@ -61,9 +61,9 @@ namespace NangClicker.HexWave
                 if (cell == null)
                     continue;
 
-                if (manager.IsFixedBoundary(i))
+                if (manager.IsWaveWall(cell.Coordinate))
                 {
-                    cell.ApplyHeight(0f);
+                    cell.ApplyHeight(Mathf.Lerp(manager.GetPreviousHeight(i), manager.GetCurrentHeight(i), interpolation));
                     int wallPropertyId = ResolveColorProperty(cell);
                     cell.ApplyColor(propertyBlock, wallPropertyId, ResolveWallColor(cell));
                     continue;
@@ -129,8 +129,7 @@ namespace NangClicker.HexWave
         private Color ResolveWallColor(HexCellView cell)
         {
             var mode = manager.GetWallResponseMode(cell.Coordinate);
-            return mode == HexSpellEdgeMode.Amplify ? new Color(0.85f, 0.42f, 0.05f) :
-                mode == HexSpellEdgeMode.Absorb ? new Color(0.1f, 0.25f, 0.4f) : wallColor;
+            return mode == HexSpellEdgeMode.Fixed ? wallColor : HexWallVisual.ColorFor(mode);
         }
 
         private void RefreshPropertyIds()

@@ -34,7 +34,7 @@ namespace NangClicker.HexWave
             EnsureResources();
             mask.Clear(); foreach (var offset in spell.region) mask.Add(origin + offset.Rotate(direction));
             int index = 0;
-            bool validOrigin = map.IsMovable(origin);
+            bool validOrigin = map.CanCastSpell(spell, origin, direction, multiplier);
             foreach (var coordinate in mask)
             {
                 if (index == markers.Count) markers.Add(CreateMarker());
@@ -51,7 +51,7 @@ namespace NangClicker.HexWave
                     {
                         if (hit.mode == HexSpellEventMode.Impulse) { total += hit.impulse * spell.strength * multiplier; hasImpulse = true; }
                         else { totalLift += spell.LiftHeight(hit, multiplier); hasLift = true; }
-                        hits++; firstTime = Mathf.Min(firstTime, hit.time + (hit.mode == HexSpellEventMode.LiftAndRelease ? spell.chargeDuration + spell.holdDuration : 0));
+                        hits++; firstTime = Mathf.Min(firstTime, hit.releaseDelay);
                     }
                 Color color = !valid ? new Color(0.45f, 0.48f, 0.52f, 0.3f) : hits == 0
                     ? new Color(0.05f, 0.5f, 1f, 0.14f) : (hasLift ? totalLift : total) >= 0f
@@ -66,8 +66,6 @@ namespace NangClicker.HexWave
                         int corner = (7 - d) % 6;
                         marker.edges[d].SetPosition(0, Corner(corner)); marker.edges[d].SetPosition(1, Corner(corner + 1));
                         var response = spell.Boundary;
-                        foreach (var edge in spell.boundaryEdges)
-                            if (origin + edge.offset.Rotate(direction) == coordinate && (edge.direction + direction) % 6 == d) response = edge.response;
                         Color edgeColor = response.mode == HexSpellEdgeMode.Amplify ? new Color(1f, 0.55f, 0.08f) :
                             response.mode == HexSpellEdgeMode.Fixed ? Color.white : response.mode == HexSpellEdgeMode.Free ? Color.green : new Color(0.1f, 0.65f, 1f);
                         marker.edges[d].startColor = marker.edges[d].endColor = valid ? edgeColor : Color.gray;
@@ -83,6 +81,26 @@ namespace NangClicker.HexWave
                 marker.label.transform.rotation = Camera.main != null ? Camera.main.transform.rotation : Quaternion.identity;
                 float visualScale = 0.065f + Mathf.Min(0.02f, Mathf.Abs(total) * 0.002f);
                 marker.label.characterSize = visualScale;
+            }
+            if (spell.walls != null) foreach (var wall in spell.walls)
+            {
+                var coordinate = origin + wall.offset.Rotate(direction);
+                if (index == markers.Count) markers.Add(CreateMarker());
+                var marker = markers[index++]; marker.root.SetActive(true);
+                marker.root.transform.position = GetTop(map, coordinate);
+                marker.root.transform.rotation = map.CellsRoot.rotation; marker.root.transform.localScale = Vector3.one * map.Spacing;
+                var profile = map.GetBoundaryProfile(wall.response);
+                var mode = profile != null ? profile.mode : HexSpellEdgeMode.Fixed;
+                var color = HexWallVisual.ColorFor(mode);
+                properties.SetColor("_BaseColor", new Color(color.r, color.g, color.b, 0.16f));
+                properties.SetColor("_Color", new Color(color.r, color.g, color.b, 0.16f)); marker.fill.SetPropertyBlock(properties);
+                marker.outline.positionCount = 7; marker.outline.widthMultiplier = 0.035f;
+                for (int c = 0; c <= 6; c++) marker.outline.SetPosition(c, Corner(c));
+                marker.outline.startColor = marker.outline.endColor = color;
+                foreach (var edge in marker.edges) edge.gameObject.SetActive(false);
+                marker.label.text = mode == HexSpellEdgeMode.Amplify ? "+ WALL" : mode == HexSpellEdgeMode.Absorb ? "- WALL" : "WALL";
+                marker.label.characterSize = 0.06f;
+                marker.label.transform.rotation = Camera.main != null ? Camera.main.transform.rotation : Quaternion.identity;
             }
             for (int i = index; i < markers.Count; i++) markers[i].root.SetActive(false);
             anchor.SetActive(true); anchor.transform.position = GetTop(map, origin) + Vector3.up * 0.22f;

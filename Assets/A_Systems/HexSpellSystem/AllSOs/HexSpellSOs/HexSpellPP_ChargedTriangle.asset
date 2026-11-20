@@ -19,44 +19,11 @@ MonoBehaviour:
     without added impulses.
   icon: {fileID: 21300000, guid: 9a1480824b8630c4cb1e17048e6deed5, type: 3}
   strength: 1
+  chargeDuration: 0.65
+  wallDuration: 2.5
   edgeMode: 0
   edgeDamping: 5
   absorptionWidth: 2
-  amplification:
-    gain: 1.35
-    triggerThreshold: 0.025
-    triggerCooldown: 0.16
-    activeDuration: 2.5
-    energyBudget: 20
-    maxTriggers: 24
-    fallbackMode: 0
-  chargeDuration: 0.65
-  holdDuration: 0.12
-  heightFromImpulse:
-    serializedVersion: 2
-    m_Curve:
-    - serializedVersion: 3
-      time: 0
-      value: 0
-      inSlope: 0
-      outSlope: 0.1
-      tangentMode: 0
-      weightedMode: 0
-      inWeight: 0
-      outWeight: 0
-    - serializedVersion: 3
-      time: 10
-      value: 1
-      inSlope: 0.1
-      outSlope: 0
-      tangentMode: 0
-      weightedMode: 0
-      inWeight: 0
-      outWeight: 0
-    m_PreInfinity: 2
-    m_PostInfinity: 2
-    m_RotationOrder: 4
-  boundaryEdges: []
   region:
   - a: -2
     b: 1
@@ -99,26 +66,24 @@ MonoBehaviour:
       a: 0
       b: 0
       c: 0
-    time: 0
-    impulse: 0
+    releaseDelay: 0.12
+    impulse: 62.64
     mode: 1
-    targetHeight: 1
-    heightFromStrength: 0
+    targetHeight: 2
   - offset:
       a: -1
       b: 1
       c: 0
-    time: 0
+    releaseDelay: 0.12
     impulse: 0
     mode: 1
-    targetHeight: 0.8
-    heightFromStrength: 0
+    targetHeight: 1.1
   - offset:
       a: 0
       b: 1
       c: -1
-    time: 0
+    releaseDelay: 0.12
     impulse: 0
     mode: 1
     targetHeight: 1.1
-    heightFromStrength: 0
+  walls: []

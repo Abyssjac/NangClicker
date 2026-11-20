@@ -27,9 +27,6 @@ namespace NangClicker.HexWave.Editor
 
             using (new EditorGUI.DisabledScope(!Application.isPlaying))
             {
-                if (GUILayout.Button("Impulse Origin"))
-                    manager.EnqueueDefaultImpulse(HexCoordinate.Origin);
-
                 if (GUILayout.Button("Reset Simulation"))
                     manager.ResetSimulation();
             }

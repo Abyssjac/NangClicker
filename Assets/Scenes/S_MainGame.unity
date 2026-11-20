@@ -22135,12 +22135,12 @@ GameObject:
   - component: {fileID: 1057721096}
   - component: {fileID: 1057721095}
   - component: {fileID: 1057721094}
-  - component: {fileID: 1057721093}
   - component: {fileID: 1057721098}
   - component: {fileID: 1057721097}
   - component: {fileID: 1057721101}
   - component: {fileID: 1057721100}
   - component: {fileID: 1057721099}
+  - component: {fileID: 1057721102}
   m_Layer: 0
   m_Name: Hex Wave Test
   m_TagString: Untagged
@@ -22148,29 +22148,6 @@ GameObject:
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
   m_IsActive: 1
---- !u!114 &1057721093
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 1057721092}
-  m_Enabled: 0
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: e0fd27cc85ef2d44d8ae25df4540db6d, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: Assembly-CSharp::NangClicker.HexWave.HexWavePointerInput
-  manager: {fileID: 1057721095}
-  inputCamera: {fileID: 1952759176}
-  raycastLayers:
-    serializedVersion: 2
-    m_Bits: 4294967295
-  impulse: 16
-  autoImpulseOnStart: 0
-  autoImpulseCoordinate:
-    a: 0
-    b: 0
-    c: 0
 --- !u!114 &1057721094
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -22239,15 +22216,9 @@ MonoBehaviour:
   kNeighbor: 35
   cNeighbor: 0.3
   physicsSubsteps: 1
-  defaultImpulse: 8
-  impulseProfile:
-  - distance: 0
-    impulseWeight: 0.6
-  - distance: 1
-    impulseWeight: 0.4
-  sleepHeightThreshold: 0.0005
-  sleepVelocityThreshold: 0.0005
-  sleepSteps: 12
+  sleepHeightThreshold: 0.2
+  sleepVelocityThreshold: 0.2
+  sleepSteps: 8
   drawBoundaryGizmos: 1
 --- !u!4 &1057721096
 Transform:
@@ -22372,6 +22343,18 @@ MonoBehaviour:
   overlayMaterial: {fileID: 2100000, guid: 68b1fc5d483e692439f535597d0938b5, type: 2}
   sphereFieldMaterial: {fileID: 2100000, guid: 201d4c0138d1d564cb0bc8ce83ff9ae3, type: 2}
   showEventLabels: 1
+--- !u!114 &1057721102
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1057721092}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: e37f104104c8df64ab08742505d4f148, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::NangClicker.HexWave.HexWallVisual
 --- !u!1001 &1074210924
 PrefabInstance:
   m_ObjectHideFlags: 0
@@ -33735,13 +33718,41 @@ PrefabInstance:
     m_Modifications:
     - target: {fileID: 387651210900453539, guid: 045d94b652ac71d4f9814ed5218eab0d, type: 3}
       propertyPath: m_text
-      value: "OBJECTIVE\n\nStop enemies from reaching the center.\n\nSelect a spell
-        with 1 / 2 / 3. Press R to rotate, then click a floor hex to cast.\nMoving
-        hexes damage enemies standing on them.\n\nEnemies reaching the center damage
-        your Base.\nBase HP 0 means defeat.\n\nCONTROLS\n\nLeft Click \u2014 Cast
-        selected spell\n1 / 2 / 3 \u2014 Select spell\nR \u2014 Rotate 60 degrees\nMiddle
-        Mouse Drag \u2014 Move Camera\nMouse Wheel \u2014 Zoom\nI \u2014 Toggle Guide\nAlt+R
-        \u2014 Restart Game"
+      value: 'OBJECTIVE
+
+
+        Stop enemies from reaching the center.
+
+
+        Moving
+        hexes damage enemies standing on them. Enemies reaching the center damage
+        your Base. Base HP 0 means defeat.
+
+
+        CONTROLS
+
+
+        1 / 2 / 3
+        - Select spell
+
+        R - Rotate 60 degrees
+
+        Hold Left Mouse -
+        Charge at a floor hex
+
+        Release when READY - Cast
+
+        Release
+        early / Right Mouse / Esc - Cancel
+
+        Middle Mouse Drag - Move Camera
+
+        Mouse
+        Wheel - Zoom
+
+        I - Toggle Guide
+
+        Alt+R - Restart Game'
       objectReference: {fileID: 0}
     - target: {fileID: 387651210900453539, guid: 045d94b652ac71d4f9814ed5218eab0d, type: 3}
       propertyPath: m_fontSizeMax
@@ -33858,6 +33869,10 @@ PrefabInstance:
     - target: {fileID: 7473221125982476117, guid: 045d94b652ac71d4f9814ed5218eab0d, type: 3}
       propertyPath: m_Name
       value: HexGameUI
+      objectReference: {fileID: 0}
+    - target: {fileID: 7473221125982476117, guid: 045d94b652ac71d4f9814ed5218eab0d, type: 3}
+      propertyPath: m_IsActive
+      value: 0
       objectReference: {fileID: 0}
     m_RemovedComponents: []
     m_RemovedGameObjects: []

@@ -7,7 +7,7 @@ namespace NangClicker.HexWave.Editor
 {
     public sealed class HexSpellEditorWindow : EditorWindow
     {
-        private enum Brush { Select, Region, EraseRegion, Event, Wall, Enemy }
+        private enum Brush { Select, Region, Event, SpellWall, TestWall, Enemy }
         [SerializeField] private HexSpellProperty spell;
         [SerializeField] private int gridSize = 13, direction;
         [SerializeField] private float playbackSpeed = 1;
@@ -21,13 +21,15 @@ namespace NangClicker.HexWave.Editor
         [SerializeField] private HexDamageSettings customDamage = HexDamageSettings.Default;
         private Brush brush;
         private HexCoordinate selected;
-        private float paintImpulse = 8, paintTime, paintHeight = 0.8f;
-        private HexSpellEventMode paintMode;
-        private int selectedEdge;
+        [SerializeField] private Key_HexBoundaryProfilePP wallBrush = Key_HexBoundaryProfilePP.Amplify;
+        private readonly HashSet<HexCoordinate> stroke = new HashSet<HexCoordinate>();
         private readonly Dictionary<HexCoordinate, HexBoundarySettings> walls = new Dictionary<HexCoordinate, HexBoundarySettings>();
         private readonly Dictionary<HexCoordinate, HexBoundarySource> wallSources = new Dictionary<HexCoordinate, HexBoundarySource>();
-        private readonly List<HexSpellWave> waves = new List<HexSpellWave>();
+        private HexWaveWorld world;
+        private HexSpellWave previewCast;
         private bool playing, loop, showDamage = true;
+        private bool metadataOpen = true, castOpen = true, boundaryOpen = true, eventOpen = true, environmentOpen, sourcesOpen, cleanupOpen;
+        private string renderError;
         private double lastUpdate, elapsed, nextDamageTime;
         private float accumulator;
         private Vector2 scroll;
@@ -38,7 +40,6 @@ namespace NangClicker.HexWave.Editor
         private int observedSpellHash;
         private Rect lastMapRect, lastPreviewRect;
         private const float StepTime = 0.02f;
-        private static readonly string[] EdgeNames = { "0 North", "1 North East", "2 South East", "3 South", "4 South West", "5 North West" };
 
         [MenuItem("Tools/Hex Wave/Spell Editor")]
         public static void OpenMenu() => Open(null);
@@ -55,14 +56,27 @@ namespace NangClicker.HexWave.Editor
             if (editView == null) editView = new HexEditorCanvasView();
             lastUpdate = EditorApplication.timeSinceStartup;
             EditorApplication.update += Tick; Undo.undoRedoPerformed += ResetPreview;
+            EditorApplication.playModeStateChanged += OnPlayModeChanged;
         }
         private void OnDisable()
         {
             EditorApplication.update -= Tick; Undo.undoRedoPerformed -= ResetPreview;
-            preview?.Cleanup(); preview = null;
-            if (mesh != null) DestroyImmediate(mesh);
-            if (dummyMesh != null) DestroyImmediate(dummyMesh);
-            if (material != null) DestroyImmediate(material);
+            EditorApplication.playModeStateChanged -= OnPlayModeChanged;
+            playing = false; world = null; previewCast = null; DisposePreview();
+        }
+        private void OnPlayModeChanged(PlayModeStateChange state)
+        {
+            ResetPreview(); DisposePreview();
+            if (state == PlayModeStateChange.EnteredEditMode) Repaint();
+        }
+        private void DisposePreview()
+        {
+            try { preview?.Cleanup(); } catch (Exception e) { Debug.LogWarning("Preview cleanup: " + e.Message); }
+            preview = null;
+            if (mesh != null) DestroyImmediate(mesh); mesh = null;
+            if (dummyMesh != null) DestroyImmediate(dummyMesh); dummyMesh = null;
+            if (material != null) DestroyImmediate(material); material = null;
+            block = null; renderError = null;
         }
         private void OnGUI()
         {
@@ -87,7 +101,7 @@ namespace NangClicker.HexWave.Editor
                 using (new EditorGUILayout.VerticalScope(GUILayout.Width(325))) DrawInspector();
                 using (new EditorGUILayout.VerticalScope())
                 {
-                    brush = (Brush)GUILayout.Toolbar((int)brush, new[] { "Select", "Region +", "Region -", "Event +", "Wall", "Enemy" });
+                    brush = (Brush)GUILayout.Toolbar((int)brush, new[] { "Select", "Region", "Event", "Spell Wall", "Test Wall", "Enemy" });
                     using (new EditorGUILayout.HorizontalScope(EditorStyles.toolbar))
                     {
                         GUILayout.Label("EDIT: wheel zoom / MMB pan", GUILayout.Width(210));
@@ -95,7 +109,7 @@ namespace NangClicker.HexWave.Editor
                         if (GUILayout.Button("Frame Spell", EditorStyles.toolbarButton)) FrameEdit(true);
                         if (GUILayout.Button("Frame Map", EditorStyles.toolbarButton)) FrameEdit(false);
                     }
-                    GUILayout.Label("Blue region | Red/purple event | White anchor | Orange Amplify edge | Gray wall | Yellow enemy", EditorStyles.miniLabel);
+                    GUILayout.Label("Blue region | Red/purple event | White anchor | + Amplify wall | - Absorb wall | Yellow enemy", EditorStyles.miniLabel);
                     lastMapRect = GUILayoutUtility.GetRect(300, Mathf.Max(230, position.height * 0.36f), GUILayout.ExpandWidth(true));
                     DrawMap(lastMapRect);
                     DrawPlayback();
@@ -111,97 +125,133 @@ namespace NangClicker.HexWave.Editor
                     lastPreviewRect = previewRect;
                     HandleNavigation(previewRect, false);
                     if (Event.current.type == EventType.Repaint) Draw3D(previewRect);
+                    if (!string.IsNullOrEmpty(renderError)) EditorGUI.HelpBox(previewRect, renderError, MessageType.Warning);
                 }
             }
         }
         private void DrawInspector()
         {
             scroll = EditorGUILayout.BeginScrollView(scroll);
-            EditorGUILayout.LabelField("Spell data", EditorStyles.boldLabel);
             var data = new SerializedObject(spell); data.Update();
-            foreach (string name in new[] { "enumKey", "displayName", "description", "icon", "strength", "chargeDuration", "holdDuration", "heightFromImpulse",
-                "edgeMode", "edgeDamping", "absorptionWidth", "amplification" })
+            metadataOpen = EditorGUILayout.Foldout(metadataOpen, "Identity / presentation", true);
+            if (metadataOpen) foreach (string name in new[] { "enumKey", "stringKey", "displayName", "description", "icon" })
                 EditorGUILayout.PropertyField(data.FindProperty(name), true);
+            castOpen = EditorGUILayout.Foldout(castOpen, "Casting", true);
+            if (castOpen)
+            {
+                foreach (string name in new[] { "strength", "chargeDuration", "wallDuration" }) EditorGUILayout.PropertyField(data.FindProperty(name));
+                EditorGUILayout.HelpBox("Game: hold to charge; release when READY. Early release cancels. Preview automatically releases when ready.", MessageType.None);
+            }
+            boundaryOpen = EditorGUILayout.Foldout(boundaryOpen, "Region perimeter", true);
+            if (boundaryOpen)
+            {
+                var mode = data.FindProperty("edgeMode");
+                int index = mode.intValue == (int)HexSpellEdgeMode.Free ? 1 : mode.intValue == (int)HexSpellEdgeMode.Fixed ? 2 : 0;
+                index = EditorGUILayout.Popup("Edge mode", index, new[] { "Absorb", "Free", "Fixed support" });
+                mode.intValue = index == 1 ? 1 : index == 2 ? 2 : 0;
+                EditorGUILayout.PropertyField(data.FindProperty("edgeDamping"));
+                EditorGUILayout.PropertyField(data.FindProperty("absorptionWidth"));
+                EditorGUILayout.HelpBox("Default response only at unoccupied perimeter edges. Wall cells take precedence.", MessageType.None);
+            }
             if (data.ApplyModifiedProperties()) ResetPreview();
             if (!spell.Validate(out string error)) EditorGUILayout.HelpBox(error, MessageType.Error);
-            EditorGUILayout.HelpBox("Impulse: deltaV = impulse x strength / mass. Lift: authoritative target height x strength; no neighbor coupling before release. Release preserves height and adds no impulse.", MessageType.Info);
-            EditorGUILayout.LabelField("Selected offset", selected.ToString());
-            paintMode = (HexSpellEventMode)EditorGUILayout.EnumPopup("New event type", paintMode);
-            paintTime = Mathf.Max(0, EditorGUILayout.FloatField("New start time", paintTime));
-            if (paintMode == HexSpellEventMode.Impulse) paintImpulse = EditorGUILayout.FloatField("New impulse", paintImpulse);
-            else paintHeight = EditorGUILayout.FloatField("New target height", paintHeight);
-            if (GUILayout.Button("Add event at selected cell")) AddEvent(selected);
-            for (int i = 0; i < spell.impulses.Count; i++)
+            eventOpen = EditorGUILayout.Foldout(eventOpen, "Events at " + selected, true);
+            if (eventOpen)
             {
-                var hit = spell.impulses[i]; if (hit.offset != selected) continue;
-                EditorGUILayout.LabelField($"Event {i + 1}", EditorStyles.boldLabel);
+                if (GUILayout.Button("Add event at selected cell")) AddEvent(selected);
+                for (int i = 0; i < spell.impulses.Count; i++)
+                {
+                    var hit = spell.impulses[i]; if (hit.offset != selected) continue;
+                    EditorGUILayout.LabelField("Event " + (i + 1), EditorStyles.boldLabel);
+                    EditorGUI.BeginChangeCheck();
+                    hit.mode = (HexSpellEventMode)EditorGUILayout.EnumPopup("Type", hit.mode);
+                    hit.releaseDelay = Mathf.Max(0, EditorGUILayout.FloatField("Release delay", hit.releaseDelay));
+                    if (hit.mode == HexSpellEventMode.Impulse)
+                    {
+                        hit.impulse = EditorGUILayout.FloatField("Signed impulse", hit.impulse);
+                        EditorGUILayout.LabelField("Final impulse", (hit.impulse * spell.strength).ToString("0.###"));
+                    }
+                    else
+                    {
+                        hit.targetHeight = EditorGUILayout.FloatField("Signed target height", hit.targetHeight);
+                        EditorGUILayout.LabelField("Final target height", spell.LiftHeight(hit, 1).ToString("0.###"));
+                    }
+                    EditorGUILayout.LabelField("Executes after mouse release", hit.releaseDelay.ToString("0.###") + "s");
+                    if (EditorGUI.EndChangeCheck())
+                    { Undo.RecordObject(spell, "Edit spell event"); spell.impulses[i] = hit; Changed(); }
+                    if (GUILayout.Button("Delete event"))
+                    { Undo.RecordObject(spell, "Delete event"); spell.impulses.RemoveAt(i); Changed(); GUIUtility.ExitGUI(); }
+                }
+            }
+            environmentOpen = EditorGUILayout.Foldout(environmentOpen, "Walls / training environment", true);
+            if (environmentOpen)
+            {
+                wallBrush = (Key_HexBoundaryProfilePP)EditorGUILayout.EnumPopup("Spell wall response", wallBrush);
+                int wallIndex = spell.walls.FindIndex(x => x.offset == selected);
+                if (wallIndex >= 0)
+                {
+                    var w = spell.walls[wallIndex];
+                    var response = (Key_HexBoundaryProfilePP)EditorGUILayout.EnumPopup("Selected wall response", w.response);
+                    if (response != w.response)
+                    { Undo.RecordObject(spell, "Change wall response"); w.response = response; spell.walls[wallIndex] = w; Changed(); }
+                }
+                var profile = HexSpellSceneSetup.ResolveProfile(wallBrush);
+                using (new EditorGUI.DisabledScope(profile == null))
+                    if (GUILayout.Button("Select shared response profile")) Selection.activeObject = profile;
+                var windowData = new SerializedObject(this); windowData.Update();
+                EditorGUILayout.PropertyField(windowData.FindProperty("paintBoundary"), true); windowData.ApplyModifiedProperties();
+                var testCell = selected.Rotate(direction);
+                if (walls.ContainsKey(testCell) && GUILayout.Button("Apply response to selected test wall"))
+                { walls[testCell] = paintBoundary; ResetPreview(); }
+                if (GUILayout.Button("Generate wall ring around region")) GenerateWallRing();
+                foreach (var target in targets)
+                {
+                    using (new EditorGUILayout.HorizontalScope())
+                    { EditorGUILayout.LabelField(target.coordinate.ToString(), GUILayout.Width(100)); target.count = Mathf.Max(1, EditorGUILayout.IntField(target.count)); }
+                    EditorGUILayout.LabelField($"Damage {target.totalDamage} | Peak hit {target.highestHit} | Hits {target.hurtCount}");
+                    EditorGUILayout.LabelField($"Peak height {target.peakHeight:0.###} | Avg DPS {(elapsed > 0 ? target.totalDamage / elapsed : 0):0.##}");
+                }
+            }
+            sourcesOpen = EditorGUILayout.Foldout(sourcesOpen, "Preview settings / damage", true);
+            if (sourcesOpen)
+            {
                 EditorGUI.BeginChangeCheck();
-                hit.mode = (HexSpellEventMode)EditorGUILayout.EnumPopup("Type", hit.mode);
-                hit.time = Mathf.Max(0, EditorGUILayout.FloatField("Start time", hit.time));
-                if (hit.mode == HexSpellEventMode.Impulse) hit.impulse = EditorGUILayout.FloatField("Signed impulse", hit.impulse);
-                else
+                settingsSource = (HexWaveManager)EditorGUILayout.ObjectField("Physics source", settingsSource, typeof(HexWaveManager), true);
+                damageSource = (HexEnemyManager)EditorGUILayout.ObjectField("Damage source", damageSource, typeof(HexEnemyManager), true);
+                if (damageSource == null)
                 {
-                    hit.heightFromStrength = EditorGUILayout.Toggle("Height from strength", hit.heightFromStrength);
-                    if (hit.heightFromStrength) hit.impulse = EditorGUILayout.FloatField("Lift strength input", hit.impulse);
-                    else hit.targetHeight = EditorGUILayout.FloatField("Signed target height", hit.targetHeight);
-                    EditorGUILayout.LabelField("Final target", spell.LiftHeight(hit, 1).ToString("0.###"));
-                    EditorGUILayout.LabelField("Release time", (hit.time + spell.chargeDuration + spell.holdDuration).ToString("0.###") + "s");
+                    customDamage.minimumHeight = Mathf.Max(0, EditorGUILayout.FloatField("Damage height threshold", customDamage.minimumHeight));
+                    customDamage.heightScale = Mathf.Max(0, EditorGUILayout.FloatField("Damage height scale", customDamage.heightScale));
+                    customDamage.interval = Mathf.Max(0.01f, EditorGUILayout.FloatField("Hurt interval", customDamage.interval));
                 }
-                if (EditorGUI.EndChangeCheck()) { Undo.RecordObject(spell, "Edit spell event"); spell.impulses[i] = hit; Changed(); }
-                if (GUILayout.Button("Delete event"))
-                { Undo.RecordObject(spell, "Delete event"); spell.impulses.RemoveAt(i); Changed(); GUIUtility.ExitGUI(); }
+                if (EditorGUI.EndChangeCheck()) ResetPreview();
+                if (GUILayout.Button("Use scene physics settings")) { settingsSource = FindFirstObjectByType<HexWaveManager>(); ResetPreview(); }
+                if (GUILayout.Button("Use scene damage settings")) { damageSource = FindFirstObjectByType<HexEnemyManager>(); ResetPreview(); }
+                var s = Settings; var d = Damage;
+                EditorGUILayout.HelpBox($"Physics m={s.mass}, k={s.kOrigin}/{s.kNeighbor}, c={s.cOrigin}/{s.cNeighbor}\nSleep h={s.sleepHeight}, v={s.sleepVelocity}, steps={s.sleepSteps}\nDamage ceil(max(0, |h|-{d.minimumHeight}) x {d.heightScale}) x count, every {d.interval}s. Parameters only; scene geometry is not imported.", MessageType.None);
             }
-            EditorGUILayout.Space();
-            EditorGUILayout.LabelField("Boundary / wall brush response", EditorStyles.boldLabel);
-            var windowData = new SerializedObject(this);
-            EditorGUILayout.PropertyField(windowData.FindProperty("paintBoundary"), true);
-            windowData.ApplyModifiedProperties();
-            if (!paintBoundary.IsValid) EditorGUILayout.HelpBox("Boundary values must be finite; Amplify needs positive limits and a Fixed/Absorb fallback.", MessageType.Error);
-            selectedEdge = EditorGUILayout.Popup("Selected local edge", selectedEdge, EdgeNames);
-            bool outer = spell.region.Contains(selected) && !spell.region.Contains(selected.GetNeighbor(selectedEdge));
-            using (new EditorGUI.DisabledScope(!outer || !paintBoundary.IsValid))
-                if (GUILayout.Button("Set selected spell edge"))
-                {
-                    Undo.RecordObject(spell, "Set spell boundary");
-                    spell.boundaryEdges.RemoveAll(x => x.offset == selected && x.direction == selectedEdge);
-                    spell.boundaryEdges.Add(new HexSpellBoundaryEdge { offset = selected, direction = selectedEdge, response = paintBoundary }); Changed();
-                }
-            if (GUILayout.Button("Use default on selected edge"))
-            { Undo.RecordObject(spell, "Reset spell edge"); spell.boundaryEdges.RemoveAll(x => x.offset == selected && x.direction == selectedEdge); Changed(); }
-            var worldSelected = selected.Rotate(direction);
-            if (walls.ContainsKey(worldSelected) && paintBoundary.IsValid && GUILayout.Button("Apply response to selected test wall"))
-            { walls[worldSelected] = paintBoundary; ResetPreview(); }
-            EditorGUILayout.HelpBox("An override applies to an outward edge of the blue region. Real scene walls take precedence. Amplify uses finite time, triggers and energy; expiry falls back without clearing waves.", MessageType.Info);
-            EditorGUILayout.Space();
-            EditorGUI.BeginChangeCheck();
-            settingsSource = (HexWaveManager)EditorGUILayout.ObjectField("Physics source", settingsSource, typeof(HexWaveManager), true);
-            damageSource = (HexEnemyManager)EditorGUILayout.ObjectField("Damage source", damageSource, typeof(HexEnemyManager), true);
-            if (damageSource == null)
+            cleanupOpen = EditorGUILayout.Foldout(cleanupOpen, "Clear / reset tools", true);
+            if (cleanupOpen)
             {
-                customDamage.minimumHeight = Mathf.Max(0, EditorGUILayout.FloatField("Damage height threshold", customDamage.minimumHeight));
-                customDamage.heightScale = Mathf.Max(0, EditorGUILayout.FloatField("Damage height scale", customDamage.heightScale));
-                customDamage.interval = Mathf.Max(0.01f, EditorGUILayout.FloatField("Hurt interval", customDamage.interval));
+                if (GUILayout.Button("Clear training targets")) { targets.Clear(); ResetPreview(); }
+                if (GUILayout.Button("Clear test walls")) { walls.Clear(); ResetPreview(); }
+                if (GUILayout.Button("Clear spell walls")) { Undo.RecordObject(spell, "Clear spell walls"); spell.walls.Clear(); Changed(); }
             }
-            if (EditorGUI.EndChangeCheck()) ResetPreview();
-            if (GUILayout.Button("Use scene physics settings")) { settingsSource = FindFirstObjectByType<HexWaveManager>(); ResetPreview(); }
-            if (GUILayout.Button("Use scene damage settings")) { damageSource = FindFirstObjectByType<HexEnemyManager>(); ResetPreview(); }
-            var physics = Settings; var damage = Damage;
-            EditorGUILayout.HelpBox($"Physics: mass {physics.mass}, k {physics.kOrigin}/{physics.kNeighbor}, c {physics.cOrigin}/{physics.cNeighbor}.\nDamage: ceil(max(0, |h|-{damage.minimumHeight}) x {damage.heightScale}) x count, every {damage.interval}s.\nSources only supply parameters; no scene geometry is imported.", MessageType.Info);
-            EditorGUILayout.LabelField("Training targets", EditorStyles.boldLabel);
-            foreach (var target in targets)
-            {
-                using (new EditorGUILayout.HorizontalScope())
-                {
-                    EditorGUILayout.LabelField(target.coordinate.ToString(), GUILayout.Width(95));
-                    target.count = Mathf.Max(1, EditorGUILayout.IntField(target.count));
-                }
-                EditorGUILayout.LabelField($"Total {target.totalDamage}  Peak hit {target.highestHit}  Hits {target.hurtCount}");
-                EditorGUILayout.LabelField($"Peak height {target.peakHeight:0.###}  Avg DPS {(elapsed > 0 ? target.totalDamage / elapsed : 0):0.##}");
-            }
-            if (GUILayout.Button("Clear training targets")) { targets.Clear(); ResetPreview(); }
-            if (GUILayout.Button("Clear test walls")) { walls.Clear(); ResetPreview(); }
-            EditorGUILayout.LabelField($"Region {spell.region.Count} / Events {spell.impulses.Count}");
+            EditorGUILayout.LabelField($"Region {spell.region.Count} / Events {spell.impulses.Count} / Walls {spell.walls.Count}");
             EditorGUILayout.EndScrollView();
+        }
+        private void GenerateWallRing()
+        {
+            if (wallBrush == Key_HexBoundaryProfilePP.None) return;
+            Undo.RecordObject(spell, "Generate spell wall ring");
+            var mask = new HashSet<HexCoordinate>(spell.region);
+            var occupied = new HashSet<HexCoordinate>(); foreach (var w in spell.walls) occupied.Add(w.offset);
+            foreach (var c in spell.region) for (int d = 0; d < 6; d++)
+            {
+                var n = c.GetNeighbor(d);
+                if (!mask.Contains(n) && occupied.Add(n)) spell.walls.Add(new HexSpellWall { offset = n, response = wallBrush });
+            }
+            Changed();
         }
 
         private float BaseScale(Rect rect) => Mathf.Min(rect.width / gridSize, rect.height / (gridSize * 1.5f));
@@ -249,11 +299,18 @@ namespace NangClicker.HexWave.Editor
                 Vector2 p = editView.ToScreen(PlanePoint(cell), rect, scale) - rect.position;
                 if (p.x < -radius || p.x > rect.width + radius || p.y < -radius || p.y > rect.height + radius) continue;
                 bool hit = spell.impulses.Exists(x => x.offset == offset), wall = walls.ContainsKey(cell);
+                var authoredWall = spell.walls.FindIndex(x => x.offset == offset);
+                if (authoredWall >= 0) wall = true;
                 Color color = wall ? new Color(0.25f, 0.28f, 0.32f) : hit ? new Color(0.75f, 0.18f, 0.08f) :
                     allowed.Contains(offset) ? new Color(0.05f, 0.25f, 0.45f) : new Color(0.1f, 0.13f, 0.17f);
                 var points = new Vector3[7];
                 for (int c = 0; c <= 6; c++)
                 { float angle = c * Mathf.PI / 3; points[c] = p + new Vector2(Mathf.Cos(angle), -Mathf.Sin(angle)) * radius * 0.94f; }
+                if (authoredWall >= 0)
+                {
+                    var response = HexSpellSceneSetup.ResolveProfile(spell.walls[authoredWall].response);
+                    color = HexWallVisual.ColorFor(response != null ? response.mode : HexSpellEdgeMode.Fixed) * 0.55f; color.a = 1;
+                }
                 Handles.color = color; Handles.DrawAAConvexPolygon(points);
                 Handles.color = offset == selected ? Color.white : new Color(0.3f, 0.35f, 0.4f);
                 Handles.DrawAAPolyLine(offset == selected ? 3 : 1, points);
@@ -261,13 +318,14 @@ namespace NangClicker.HexWave.Editor
                     if (!allowed.Contains(offset.GetNeighbor(d)))
                     {
                         HexBoundarySettings response = spell.Boundary;
-                        foreach (var edge in spell.boundaryEdges) if (edge.offset == offset && edge.direction == d) response = edge.response;
                         int corner = (7 - ((d + direction) % 6)) % 6;
                         Handles.color = BoundaryColor(response.mode); Handles.DrawAAPolyLine(3, points[corner], points[(corner + 1) % 6]);
                     }
                 if (radius > 10)
                 {
-                    string label = cell == HexCoordinate.Origin ? "000" : hit ? EventLabel(offset) : "";
+                    string label = cell == HexCoordinate.Origin ? "000" : authoredWall >= 0 ?
+                        (spell.walls[authoredWall].response == Key_HexBoundaryProfilePP.Amplify ? "+" :
+                        spell.walls[authoredWall].response == Key_HexBoundaryProfilePP.Absorb ? "-" : "W") : hit ? EventLabel(offset) : "";
                     GUI.Label(new Rect(p.x - 18, p.y - 9, 65, 20), label, EditorStyles.whiteMiniLabel);
                 }
                 var target = targets.Find(x => x.coordinate == cell);
@@ -282,6 +340,8 @@ namespace NangClicker.HexWave.Editor
             Handles.color = Color.white; Handles.DrawAAPolyLine(3, center, end);
             Handles.EndGUI(); GUI.EndClip();
             var current = Event.current;
+            if (current.type == EventType.MouseDown && current.button == 0) stroke.Clear();
+            if (current.type == EventType.MouseUp && current.button == 0) stroke.Clear();
             if ((current.type == EventType.MouseDown || current.type == EventType.MouseDrag) && current.button == 0 && rect.Contains(current.mousePosition))
             {
                 Vector2 p = editView.ToLocal(current.mousePosition, rect, scale);
@@ -289,22 +349,36 @@ namespace NangClicker.HexWave.Editor
                 if (cell.A >= min && cell.A < min + gridSize && cell.B >= min && cell.B < min + gridSize)
                 {
                     selected = cell.Rotate(-direction);
-                    if (brush == Brush.Region && !allowed.Contains(selected))
-                    { Undo.RecordObject(spell, "Paint region"); spell.region.Add(selected); CleanBoundaryEdges(); Changed(); }
-                    else if (brush == Brush.EraseRegion && allowed.Contains(selected))
+                    if (stroke.Add(cell))
                     {
-                        Undo.RecordObject(spell, "Erase region"); spell.region.Remove(selected); spell.impulses.RemoveAll(x => x.offset == selected);
-                        spell.boundaryEdges.RemoveAll(x => x.offset == selected); Changed();
-                    }
-                    else if (brush == Brush.Event && current.type == EventType.MouseDown) AddEvent(selected);
-                    else if (brush == Brush.Wall && current.type == EventType.MouseDown && paintBoundary.IsValid)
-                    { if (!walls.Remove(cell)) walls.Add(cell, paintBoundary); ResetPreview(); }
-                    else if (brush == Brush.Enemy && current.type == EventType.MouseDown)
-                    {
-                        var target = targets.Find(x => x.coordinate == cell);
-                        if (target == null && Movable(cell)) targets.Add(new HexTrainingTarget { coordinate = cell });
-                        else if (target != null) targets.Remove(target);
-                        ResetPreview();
+                        if (brush == Brush.Region)
+                        {
+                            Undo.RecordObject(spell, "Toggle region");
+                            if (!spell.region.Remove(selected))
+                            { spell.walls.RemoveAll(x => x.offset == selected); spell.region.Add(selected); }
+                            else spell.impulses.RemoveAll(x => x.offset == selected);
+                            Changed();
+                        }
+                        else if (brush == Brush.Event) AddEvent(selected);
+                        else if (brush == Brush.SpellWall && selected != HexCoordinate.Origin && wallBrush != Key_HexBoundaryProfilePP.None)
+                        {
+                            Undo.RecordObject(spell, "Toggle spell wall");
+                            if (spell.walls.RemoveAll(x => x.offset == selected) == 0)
+                            {
+                                spell.region.Remove(selected); spell.impulses.RemoveAll(x => x.offset == selected);
+                                spell.walls.Add(new HexSpellWall { offset = selected, response = wallBrush });
+                            }
+                            Changed();
+                        }
+                        else if (brush == Brush.TestWall && paintBoundary.IsValid)
+                        { if (!walls.Remove(cell)) walls.Add(cell, paintBoundary); ResetPreview(); }
+                        else if (brush == Brush.Enemy)
+                        {
+                            var target = targets.Find(x => x.coordinate == cell);
+                            if (target == null && Movable(cell)) targets.Add(new HexTrainingTarget { coordinate = cell });
+                            else if (target != null) targets.Remove(target);
+                            ResetPreview();
+                        }
                     }
                 }
                 current.Use(); Repaint();
@@ -320,15 +394,16 @@ namespace NangClicker.HexWave.Editor
             mode == HexSpellEdgeMode.Absorb ? new Color(0.1f, 0.65f, 1) : mode == HexSpellEdgeMode.Free ? Color.green : Color.white;
         private void AddEvent(HexCoordinate offset)
         {
-            if (!Finite(paintImpulse) || !Finite(paintHeight)) return;
-            Undo.RecordObject(spell, "Add spell event"); if (!spell.region.Contains(offset)) spell.region.Add(offset);
-            spell.impulses.Add(new HexSpellImpulse(offset, paintTime, paintImpulse) { mode = paintMode, targetHeight = paintHeight }); CleanBoundaryEdges(); Changed();
+            Undo.RecordObject(spell, "Add spell event");
+            spell.walls.RemoveAll(x => x.offset == offset);
+            if (!spell.region.Contains(offset)) spell.region.Add(offset);
+            spell.impulses.Add(new HexSpellImpulse(offset, 0, 8)); Changed();
         }
-        private void CleanBoundaryEdges() => spell.boundaryEdges.RemoveAll(x => !spell.region.Contains(x.offset) || spell.region.Contains(x.offset.GetNeighbor(x.direction)));
         private void Changed() { EditorUtility.SetDirty(spell); ResetPreview(); }
         private void ResetPreview()
         {
-            waves.Clear(); wallSources.Clear(); elapsed = accumulator = 0; nextDamageTime = Mathf.Max(0.01f, Damage.interval); playing = false;
+            world = null; previewCast = null; wallSources.Clear(); elapsed = accumulator = 0;
+            nextDamageTime = Mathf.Max(0.01f, Damage.interval); playing = false;
             foreach (var target in targets) target.ResetStats();
             lastUpdate = EditorApplication.timeSinceStartup; Repaint();
         }
@@ -343,46 +418,63 @@ namespace NangClicker.HexWave.Editor
         private HexBoundarySource MapBoundary(HexCoordinate cell)
         {
             if (!wallSources.TryGetValue(cell, out var source))
-            { source = new HexBoundarySource(walls.TryGetValue(cell, out var response) ? response : HexBoundarySettings.Fixed, elapsed, true); wallSources.Add(cell, source); }
+            {
+                var response = walls.TryGetValue(cell, out var value) ? value : HexBoundarySettings.Fixed;
+                var profile = HexSpellSceneSetup.ResolveProfile(response.profile);
+                source = new HexBoundarySource(response, true, profile != null ? profile.amplification : HexAmplifySettings.Default);
+                wallSources.Add(cell, source);
+            }
             return source;
         }
-        private float Height(HexCoordinate cell) { float h = 0; foreach (var wave in waves) h += wave.GetHeight(cell); return h; }
-        private bool AddCast()
+        private float Height(HexCoordinate cell) => world?.Height(cell) ?? 0;
+        private bool StartPreview()
         {
-            if (spell == null || !spell.Validate(out _) || !Movable(HexCoordinate.Origin)) return false;
-            var wave = new HexSpellWave(spell, HexCoordinate.Origin, direction, 1, Settings, Movable, MapBoundary, elapsed);
-            if (wave.IsFinished) return false; waves.Add(wave); return true;
+            if (world == null) world = new HexWaveWorld(Movable, MapBoundary, HexSpellSceneSetup.ResolveProfile);
+            previewCast = world.BeginCast(spell, HexCoordinate.Origin, direction, Settings, 1, true);
+            return previewCast != null;
         }
         private void Advance()
         {
-            foreach (var wave in waves) wave.Step(StepTime);
-            waves.RemoveAll(x => x.IsFinished); elapsed += StepTime;
+            if (world == null) return;
+            world.Step(StepTime); elapsed = world.Time;
             foreach (var target in targets) target.peakHeight = Mathf.Max(target.peakHeight, Mathf.Abs(Height(target.coordinate)));
             while (elapsed + 1e-8 >= nextDamageTime)
             {
                 foreach (var target in targets) if (Movable(target.coordinate)) target.Sample(Height(target.coordinate), Damage, nextDamageTime);
                 nextDamageTime += Mathf.Max(0.01f, Damage.interval);
             }
-            if (waves.Count == 0) { if (loop) AddCast(); else playing = false; }
+            if (world.IsIdle)
+            {
+                if (loop) { ResetPreview(); playing = StartPreview(); }
+                else playing = false;
+            }
         }
         private void DrawPlayback()
         {
             using (new EditorGUILayout.HorizontalScope(EditorStyles.toolbar))
             {
-                if (GUILayout.Button(playing ? "Pause" : "Play", EditorStyles.toolbarButton))
-                { if (playing) playing = false; else { if (waves.Count == 0) { ResetPreview(); AddCast(); } playing = waves.Count > 0; lastUpdate = EditorApplication.timeSinceStartup; } }
-                if (GUILayout.Button("Replay", EditorStyles.toolbarButton)) { ResetPreview(); playing = AddCast(); }
-                if (GUILayout.Button("Step", EditorStyles.toolbarButton)) { playing = false; if (waves.Count == 0) AddCast(); Advance(); }
-                if (GUILayout.Button("Add Cast", EditorStyles.toolbarButton)) AddCast();
+                bool locked = EditorApplication.isPlayingOrWillChangePlaymode;
+                using (new EditorGUI.DisabledScope(locked))
+                {
+                    if (GUILayout.Button(playing ? "Pause" : "Play", EditorStyles.toolbarButton))
+                    {
+                        if (playing) playing = false;
+                        else { if (world == null || world.IsIdle) { ResetPreview(); StartPreview(); } playing = world != null && !world.IsIdle; lastUpdate = EditorApplication.timeSinceStartup; }
+                    }
+                    if (GUILayout.Button("Replay", EditorStyles.toolbarButton)) { ResetPreview(); playing = StartPreview(); }
+                    if (GUILayout.Button("Reset Simulation", EditorStyles.toolbarButton)) ResetPreview();
+                    if (GUILayout.Button("Step", EditorStyles.toolbarButton))
+                    { playing = false; if (world == null || world.IsIdle) { ResetPreview(); StartPreview(); } Advance(); }
+                }
                 loop = GUILayout.Toggle(loop, "Loop", EditorStyles.toolbarButton);
-                playbackSpeed = EditorGUILayout.Slider(playbackSpeed, 0.1f, 3, GUILayout.Width(130));
-                GUILayout.Label($"{elapsed:0.00}s  Waves {waves.Count}", GUILayout.Width(125));
+                playbackSpeed = EditorGUILayout.Slider(playbackSpeed, 0.1f, 3, GUILayout.Width(120));
+                GUILayout.Label($"{elapsed:0.00}s  {previewCast?.Phase.ToString() ?? "Stopped"}", GUILayout.Width(180));
             }
         }
         private void Tick()
         {
             double now = EditorApplication.timeSinceStartup;
-            if (playing)
+            if (playing && !EditorApplication.isPlayingOrWillChangePlaymode)
             {
                 accumulator += (float)Math.Min(0.1, now - lastUpdate) * playbackSpeed;
                 int guard = 0; while (accumulator >= StepTime && playing && guard++ < 20) { Advance(); accumulator -= StepTime; }
@@ -403,11 +495,12 @@ namespace NangClicker.HexWave.Editor
                 bounds.Encapsulate(HexCoordinate.FromAxial(min + gridSize - 1, min + gridSize - 1).ToLocalPosition(1));
             }
             // Fit both current displacement and authored lift targets, not only the resting ground plane.
-            foreach (var wave in waves) for (int i = 0; i < wave.CellCount; i++)
+            if (world != null) foreach (var wave in world.Casts) for (int i = 0; i < wave.CellCount; i++)
                 bounds.Encapsulate(wave.GetCoordinate(i).ToLocalPosition(1, wave.GetHeight(i) + 1));
             if (spell != null) foreach (var hit in spell.impulses)
                 if (hit.mode == HexSpellEventMode.LiftAndRelease)
                     bounds.Encapsulate(hit.offset.Rotate(direction).ToLocalPosition(1, spell.LiftHeight(hit, 1) + 1));
+            if (spell != null) foreach (var wall in spell.walls) bounds.Encapsulate(wall.offset.Rotate(direction).ToLocalPosition(1));
             return bounds;
         }
         private void FrameEdit(bool spellOnly)
@@ -425,13 +518,28 @@ namespace NangClicker.HexWave.Editor
         }
         private void Draw3D(Rect rect)
         {
-            if (rect.width < 1 || rect.height < 1) return;
-            if (preview == null)
+            try { Render3D(rect); renderError = null; }
+            catch (Exception e)
             {
-                preview = new PreviewRenderUtility(); preview.camera.fieldOfView = 35;
-                mesh = BuildColumn(); dummyMesh = BuildDummy();
-                material = new Material(Shader.Find("NangClicker/Hex Spell Preview")); block = new MaterialPropertyBlock();
+                DisposePreview(); renderError = "Preview resources were reset. " + e.Message;
             }
+        }
+        private void Render3D(Rect rect)
+        {
+            if (rect.width < 1 || rect.height < 1) return;
+            if (preview == null || preview.camera == null ||
+                preview.camera.targetTexture != null && !preview.camera.targetTexture.IsCreated())
+            { DisposePreview(); preview = new PreviewRenderUtility(); }
+            preview.camera.fieldOfView = 35;
+            if (mesh == null) mesh = BuildColumn();
+            if (dummyMesh == null) dummyMesh = BuildDummy();
+            if (material == null)
+            {
+                var shader = Shader.Find("NangClicker/Hex Spell Preview");
+                if (shader == null) throw new InvalidOperationException("Preview shader is not available.");
+                material = new Material(shader) { hideFlags = HideFlags.HideAndDontSave };
+            }
+            if (block == null) block = new MaterialPropertyBlock();
             preview.BeginPreview(rect, GUIStyle.none);
             var camera = preview.camera; camera.clearFlags = CameraClearFlags.Color; camera.backgroundColor = new Color(0.3f, 0.35f, 0.42f);
             Vector3 axis = new Vector3(0.35f, 1.15f, -1.3f).normalized;
@@ -444,8 +552,16 @@ namespace NangClicker.HexWave.Editor
                 bool hit = spell.impulses.Exists(x => x.offset == offset);
                 Color color = !Movable(cell) ? new Color(0.36f, 0.4f, 0.46f) : hit ? new Color(1, 0.3f, 0.1f) :
                     spell.region.Contains(offset) ? Color.Lerp(new Color(0.12f, 0.65f, 0.95f), new Color(0.3f, 0.9f, 1), Mathf.Clamp01(Mathf.Abs(h))) : new Color(0.58f, 0.66f, 0.72f);
-                foreach (var wave in waves) if (wave.GetControl(cell) != HexMotionControl.Free) color = new Color(0.9f, 0.45f, 1);
-                if (walls.TryGetValue(cell, out var response) && response.mode == HexSpellEdgeMode.Amplify) color = new Color(1, 0.6f, 0.1f);
+                if (world != null && world.Control(cell) != HexMotionControl.Free) color = new Color(0.9f, 0.45f, 1);
+                if (walls.TryGetValue(cell, out var response)) color = HexWallVisual.ColorFor(response.mode);
+                bool activeWall = world != null && world.IsTemporaryWall(cell);
+                int wallIndex = spell.walls.FindIndex(x => x.offset == offset);
+                if (activeWall) color = Color.Lerp(HexWallVisual.ColorFor(world.GetWallSource(cell).Settings.mode), Color.white, world.WallFlash(cell));
+                else if (wallIndex >= 0)
+                {
+                    var profile = HexSpellSceneSetup.ResolveProfile(spell.walls[wallIndex].response);
+                    color = Color.Lerp(color, HexWallVisual.ColorFor(profile != null ? profile.mode : HexSpellEdgeMode.Fixed), 0.35f);
+                }
                 if (cell == HexCoordinate.Origin && Movable(cell)) color = Color.white;
                 block.SetColor("_BaseColor", color);
                 preview.DrawMesh(mesh, Matrix4x4.TRS(cell.ToLocalPosition(1, h), Quaternion.identity, Vector3.one), material, 0, block);

@@ -1,200 +1,87 @@
 # Hex Spell system
 
-## Run and equip
+## Play and configure
 
-Open `Assets/Scenes/S_MainGame.unity` and enter Play Mode. The flat bottom bar defaults to
-**Line Strike / Triad Fall / Resonance Cage**. Click a slot, press **1–3** on the main keyboard
-or numeric keypad, and click a movable hex to cast. **R** rotates 60 degrees. Alt+R does not
-also rotate. The skill bar has icons, hotkey badges and selected-state highlights; no description panel.
+Open Assets/Scenes/S_MainGame.unity. Slots are SpellManager.slots; the default three slots use the centrally registered HexSpellDatabase. Select with 1/2/3 (main row or keypad), rotate 60 degrees with R, then hold LMB on a valid floor hex. The anchor, direction, strength and event data are captured on mouse down.
 
-Equipment is `SpellManager.slots` (enum keys). The database may contain more than three spells.
-`HexSpellTestUI` retains its existing serialized component identity but is presentation-only.
-Its Canvas/EventSystem are generated at runtime. Legacy pointer attack input stays disabled.
+Every skill charges, including impulse-only skills. Early release cancels; lifted contributions return smoothly without a free wave. At full charge the selected slot flashes and the bar says READY - RELEASE MOUSE TO CAST. Continue holding to keep lift targets stationary; release LMB to commit. Right-click, Escape, changing slot, losing application focus, disabling input or pausing cancels the held cast. R does not rotate a held cast. Alt+R is excluded from skill rotation.
 
-The scene's original enemy-manager enabled/disabled setting is preserved. If it was disabled
-before this change, enable it yourself when testing automatic enemy spawning. Editor training
-targets do not depend on enabling or instantiating the real EnemyManager.
+Public authority: BeginSpell -> HexSpellWave; ReleaseSpell and CancelSpell. CastSpell is an automation convenience that performs a full charge and auto-releases; player input never uses it. Height/velocity snapshots are published by HexWaveManager. The renderer does not own simulation data.
 
-## Database and sample collection
+## Events and authoritative lift
 
-Assets: `Assets/A_Systems/HexSpellSystem/AllSOs/HexSpellSOs/`
+HexSpellProperty has strength, chargeDuration, wallDuration, region, impulses (the serialized event list) and walls.
+An event has offset, mode, releaseDelay, signed impulse or signed targetHeight.
 
-| Key | Display name | Purpose |
-| --- | --- | --- |
-| Line | Line Strike | Existing direct line impulses |
-| Triangle | Triangle Strike | Existing user-authored sample; its region/events are preserved |
-| ChargedTriangle | Triad Fall | Three isolated lifts; 0.65s charge + 0.12s hold, then elastic release |
-| StairHammer | Cascade | Five staggered lifts along a line |
-| Convergence | Cross Echo | Opposing sources with a delayed second axis |
-| ResonanceCage | Resonance Cage | Radius-three mask, short amplified perimeter, then absorption |
-| RingEcho | Ring Return | Outer impulse ring, inverted inner ring, delayed center |
-| SinkRebound | Undertow | Negative lift targets release into an upward rebound |
-| Aftershock | Threefold | Three beats and one explicitly amplified outward edge |
+- Impulse: velocity increment = impulse * strength * castMultiplier / mass.
+- LiftAndRelease: target = targetHeight * strength * castMultiplier.
+- All lifts begin together during charging, using quintic smoothstep with zero endpoint velocity.
+- All events use releaseDelay measured from the actual ready mouse release.
+- A delayed lift holds its target until that delay expires, then preserves displacement and joins free spring motion with zero added impulse.
+- Controlled lift and cancellation recovery contributions do not couple to neighbors. Other free contributions still evolve independently.
+- Cancellation uses a 0.16-second Hermite recovery preserving its starting height and velocity.
+- There is no Height From Strength curve, holdDuration, manual boundary-edge list or legacy ring impulse profile.
 
-Existing enum values are persistent identifiers; append rather than reorder them.
-Property/Database inherit the project's `EnumStringKeyedProperty` / `EnumStringKeyedDatabase`.
-Runtime lookup remains `PropertyDatabaseManager -> HexSpellDatabase -> GetByEnum(key)`.
-`HexSpellDB_main` has its family scanFolder collected and remains registered once on
-`AInitGameObject Variant`. Managers do not serialize a database asset reference.
+Physics per free contribution: m*a = -ko*h - (co + extraDamping)*v + sum(kn*(hj-h) + cn*(vj-v)).
+All arrays advance from a common previous snapshot; the shared world substeps for stiffness/damping stability.
+No hard height clamp. Sleep requires all heights and velocities of a contribution below their thresholds for sleepSteps consecutive calls; pending events and held casts prevent completion. Settings are captured on cast creation.
 
-Create new assets using **Create > AllProperties > HexSpellProperty**. Add an enum value,
-give the Property a unique non-None key, keep stringKey empty, collect database entries,
-and equip its key in SpellManager. Icons/presentation assets may be referenced directly.
+## Region perimeter and walls
 
-The explicit **Tools > Hex Wave > Install Spell Test In Active Scene** command creates missing
-samples/icons, collects/registers the database, and wires an existing map. It preserves existing
-spell configurations and custom slot assignments; the old two-slot Line/Triangle loadout is
-upgraded to the new three-slot default. It is never run automatically.
+Region is the set where this cast may have displacement. It includes anchor 000. Walls are separate cell coordinates outside the moving region and cannot overlap an event or anchor.
+Perimeter EdgeMode is Absorb, Free or Fixed support. Fixed support means a zero-height external neighbor, not locking the inside perimeter row.
 
-## Event parameters
+Physical scene walls override spell walls, which override the default perimeter response. Free still clips the cast to its region.
+An Absorb wall remains fixed and adds damping inward. Width 2: contact layer gets full damping, next layer gets half, deeper cells get none. Overlapping absorption bands use the maximum extra damping, not a sum.
 
-| Parameter | Meaning |
-| --- | --- |
-| region | Allowed cube-coordinate offsets, relative to anchor 000 |
-| impulses | Event list; each entry can be Impulse or LiftAndRelease |
-| offset | Target offset, required to belong to region |
-| time | Event start time since cast; not necessarily its release time |
-| impulse | Signed physical impulse for Impulse mode |
-| targetHeight | Signed authoritative displacement for LiftAndRelease |
-| heightFromStrength | Optional mapping instead of direct targetHeight |
-| heightFromImpulse | Mapping curve X=abs(event impulse), Y=lift height; sign restored afterward |
-| strength | Signed global multiplier; scales impulse and lift displacement |
-| chargeDuration | Lift time; default uses a quintic smooth trajectory with zero endpoint velocity |
-| holdDuration | Stationary hold after lifting, before release |
-| edgeMode | Default outer-edge response: Absorb / Free / Fixed / Amplify |
-| edgeDamping / absorptionWidth | Extra absorption damping and inward width in cells |
-| amplification | Finite pump activation and budget settings |
-| boundaryEdges | Optional per-outward-edge response overrides, in local skill coordinates |
+Spell walls appear on ready mouse release; wallDuration starts then. During charging/ready hold they are previews. They affect every free wave, including casts that predate the wall. No caster ownership test restricts response.
+Topology updates on wall creation, expiry and effective response changes. New wall cells smoothly retire their existing contributions without transmitting that recovery. Expiry does not restore cached heights.
+Wall duration is independent of wave sleep. Same-cell overlapping leases do not multiply gain; Fixed > Absorb > Amplify; same-priority ties use the latest creation. Every lease expires separately; the last lease removal frees the cell.
+Temporary walls currently affect wave topology only, not the enemy BFS map.
 
-Final impulse = event impulse × Property strength × cast multiplier.
-Final lift height = direct targetHeight (or signed mapped height) × Property strength × cast multiplier.
-The two modes have different physical meanings; they are not assumed to inject equal energy.
+## Shared response profiles
 
-A lift event starting at 0.2s, with 0.6s charge and 0.1s hold, releases at 0.9s.
-Direction zero follows the upper-right map neighbor (1,0,-1). Rotation uses exact cube-coordinate
-permutations; six turns return to the same pattern without world-position rounding.
+Assets/A_Systems/HexSpellSystem/AllSOs/HexBoundaryProfileSOs contains Fixed, Absorb and Amplify properties plus HexBoundaryProfileDB_main.
+Lookup: PropertyDatabaseManager.GetDatabase<HexBoundaryProfileDatabase>().GetByEnum(key).
+Skill wall entries store response enum keys. Profiles hold immutable response parameters; runtime contacts and expiry live in HexWaveWorld/HexBoundarySource.
 
-## Authoritative lift and release
+Amplify has gain, triggerThreshold, triggerCooldown and rearmRatio. It has no EnergyBudget, MaxTriggers or fallback mode.
+A contact triggers when abs(h) >= threshold, h*v > 0, its cooldown has expired and its gate is armed. It rearms after abs(h) drops below threshold * rearmRatio.
+Walls amplify existing motion; they do not start a wave from zero.
 
-A controlled lift contributes height and velocity directly to the Manager snapshot.
-Its quintic trajectory reaches the exact target with zero velocity; it is not just a Transform animation.
+All contacts inspect the same combined free-wave snapshot. Different adjacent wall cells add velocity increments:
+vNew = vBefore * (1 + sum(gainWall - 1)).
+Three Gain=1.2 walls give 1.6*vBefore. Each wall/contact pair is independent. Internal field count cannot duplicate a contact trigger.
+The shared Amplify profile starts at gain 1.2; skill wall lifetime controls how long it can inject energy. Finite lifetime does not bound peak amplitude; adjust gain, lifetime and damping together.
+Wall glyphs: Amplify purple +, Absorb cyan -, Fixed gray. Contact edges flash, and temporary-wall outlines fade near expiry.
 
-During charge/hold, that contribution does not excite neighboring cells. Other casts continue
-simulating normally, and enemies on the raised/depressed cell take damage from total absolute height.
-At release, the current height becomes an initial displacement of a free wave field, with zero
-endpoint velocity. No extra impulse is applied, even if the event's unused impulse field is nonzero.
+## Editor
 
-Several lifts/events at one cell remain separate contributions; they do not overwrite another
-skill's wave or total terrain height. Height/velocity snapshots, visual interpolation, damage and
-energy diagnostics all read the authoritative sum. There is no hard height clamp.
+Tools > Hex Wave > Spell Editor.
+Select a skill SO. Both 2D editing and 3D preview support wheel zoom/MMB pan and independent Reset View/Frame controls.
+Brushes: Select, Region (toggle once per cell per stroke), Event (new default impulse then edit it), Spell Wall (saved in skill), Test Wall (preview environment only), Enemy (infinite-health training target).
+The selected wall response chooses a shared profile; Generate wall ring paints outside the region. Painting a wall replaces conflicting region/events at that cell.
+Sidebar sections separate identity, casting, perimeter response, selected events, walls/training, sources and cleanup.
+Playback: Play/Pause, Replay, Step, Reset Simulation and Loop. Add Cast is removed.
+Preview automatically releases at full charge; it does not emulate a mouse hold. Reset Simulation returns to stopped 0s and clears runtime motion, contacts, wall leases and damage statistics, preserving authored layout, test environment and views.
 
-The supplied work of controlled movement includes elastic coupling energy available at release;
-energy diagnostics sum independent contribution energies, rather than pretending this is a
-passive gravitational system. The restoring forces are spring forces, not a separate gravity term.
+Physics Source supplies mass, ko/co/kn/cn, substeps and sleep settings. Damage Source independently supplies height deadzone, scale and hurt interval. Neither imports scene geometry.
+Damage [D] toggles labels when the editor window is focused and not editing text. Damage = ceil(max(0, abs(height)-minimumHeight)*heightScale)*stackCount per hurt tick, including controlled lift. Training HP is infinite.
 
-PendingCastCount includes waiting events and not-yet-released lifts. Once all events are released,
-the cast is finished while its residual free fields remain alive until sleep thresholds are met.
-A Spell GameObject is not kept alive per cast.
+PreviewRenderUtility owns a separate scene/camera. Play Mode transitions pause/reset preview simulation and dispose rendering resources. Camera, meshes and material are checked independently and recreated when invalid. View state survives.
+A render failure resets preview resources and displays a diagnostic instead of keeping invalid handles.
 
-## Map walls versus spell edges
+## Existing assets and migration
 
-Map roles and motion control are independent:
-- `HexCellView.isWall`: authored obstacle. Any missing neighbor still causes automatic fixed boundary.
-- `useWallResponse / wallResponse`: optional scene-wall response; old walls default to Fixed.
-- `HexMotionControl`: Free, Charging or Holding contribution state; a lift is not automatically an obstacle.
-- Spell region: limits only that cast's wave contribution and does not change global walkability.
+The nine authored skill layouts and enum identities remain. Existing direct heights are retained, including the user-edited ChargedTriangle targets.
+Old event time becomes releaseDelay; old lift holdDuration is added to its event delay.
+ResonanceCage's amplified perimeter becomes an explicit outer wall ring, lifetime 2.2s. Aftershock uses a temporary wall at local (4,0,-4), lifetime 1.6s. Both use the shared Amplify profile.
+The scene height gradient and enemy manager enabled state are preserved.
 
-Grid Painter **Wall** has a response configuration; **Floor** clears the authored wall flag but
-does not unfix automatic outer boundaries. Rebuilding topology resets waves and wall budgets.
-Direct Inspector edits require a rebuild. Fixed walls stay dark, Absorb walls blue-gray,
-and active Amplify walls amber; an expired amplifier displays its fallback response.
+Tools > Hex Wave > Upgrade Spell System In Active Scene is an explicit idempotent registration/setup utility. It creates missing standard profiles, collects databases, registers each family once on AInitGameObject Variant, attaches wall visuals and updates the guide. It never overwrites authored skill layouts.
+No AbyssToolKit/package sources or build settings are modified.
 
-The clicked anchor must be movable. Missing/wall direct-event cells are skipped without
-redistributing their strength. No origin-to-source reachability or line-of-sight check is imposed.
-An independently authored event beyond a wall is allowed; actual propagation cannot cross walls,
-but can travel around them inside its own region.
+## Verification
 
-A real scene wall takes precedence over a spell-edge override. A spell cannot open a map wall.
-Legacy debug impulses also use the shared wall-response solver.
-
-## Finite amplification
-
-Amplify is an active energy source, not negative damping or a per-frame velocity multiplier.
-A boundary-adjacent cell triggers while moving away from zero past triggerThreshold.
-It rearms only after falling below 40% of that threshold, and respects triggerCooldown.
-
-The pump adds velocity in the current direction, aiming for the configured gain. Injected kinetic
-energy is measured and deducted from energyBudget. It also respects activeDuration and maxTriggers.
-On expiry/exhaustion it falls back to Fixed or Absorb without deleting the residual wave.
-
-This is a controlled gameplay approximation of enhanced reflection, not an exact traveling-wave
-collision detector. Gain is a local velocity gain per valid trigger, not a guaranteed final damage multiplier.
-
-Each cast shares one default-edge budget across its free fields. A per-edge override owns its own
-budget. A scene-wall source shares its activation, gates and remaining budget across all casts.
-Its activation starts when a wave first resolves that wall source, not every render frame.
-Scene walls do not recharge automatically; `HexWaveManager.RearmWall(coordinate)` explicitly rearms one.
-Reset/rebuild also resets their budgets. New casts do not recharge an existing scene-wall source.
-
-## Editor navigation and editing
-
-Open **Tools > Hex Wave > Spell Editor**, or open from the Property Inspector.
-
-Both views support wheel zoom and **middle mouse drag**. Each has separate:
-- Reset View: default framing.
-- Frame Spell: fit authored region/current motion/lift targets.
-- Frame Map: fit the test map.
-
-These do not restart simulation. Play/Pause and Replay are separate. Asset/brush changes may reset
-simulation and statistics but preserve view pan/zoom. Zoom in the edit canvas is anchored under the pointer.
-
-Brushes:
-- Select: select an offset and inspect all events there.
-- Region + / Region -: edit the allowed footprint. Erasing removes events and obsolete edge overrides.
-- Event +: add an event using New event type/start/impulse/target settings.
-- Wall: toggle a local test wall with the brush response. These do not modify the game map.
-- Enemy: toggle a static infinite-health training target on a movable cell.
-
-Use the sidebar's local edge selector and Set selected spell edge to override an outward-facing
-edge. Use default removes that override. Blue=Absorb, white=Fixed, green=Free, orange=Amplify.
-When painting expands a region, obsolete interior-edge overrides are removed.
-
-Grid k × k is an axial parallelogram. Its outer perimeter is fixed, matching game rules.
-The lower view uses PreviewRenderUtility and the same solver as the game. Purple columns are
-currently controlled lifts; yellow spheres are training targets. D toggles damage labels when
-the editor window is focused and a text field is not being edited.
-
-## Training targets and settings sources
-
-Targets have no finite HP pool or death behavior. Their stack count can be adjusted.
-Counters include total damage, maximum hit, hurt count, peak height, average DPS and sample history.
-Hiding labels does not stop damage collection. Replay/new Play resets statistics and budgets;
-Add Cast preserves the current run. Loop continues the run until reset.
-
-Physics Source / Use scene physics settings only reads:
-mass, kOrigin, cOrigin, kNeighbor, cNeighbor, height/velocity sleep thresholds, quiet step count,
-and minimum substeps. It does not import scene geometry, walls, or enemies.
-
-Damage Source / Use scene damage settings separately reads:
-minimumDamageHeight, heightDamageScale, enemyHurtStep. If absent, editable fallback settings are used.
-
-Runtime and editor call the same `HexWaveDamage.Evaluate`:
-`ceil(max(0, abs(height) - minimumHeight) * heightScale) * count`.
-The float arithmetic/rounding order is preserved from the original game.
-Training totals use saturating 64-bit accumulation; they do not fake infinity with int.MaxValue HP.
-Sampling uses simulation time, so playback speed changes real-time viewing speed, not damage per run.
-
-Parameters and events are captured on cast; changing a source affects future casts. Replay after
-changing external scene parameters is recommended for a controlled comparison. Amplification and
-interference can change timing and cumulative damage: a larger visual peak alone does not prove more damage.
-
-## Verification and scope
-
-**Tools > Hex Wave > Verify Spell Simulation** runs deterministic checks in an isolated preview scene:
-all skill rotations, finite motion and retirement, mask isolation, wall blocking/detours, independent
-direct sources, timed events, captured data, lifts and continuous release, budgets, damage,
-canvas transforms, additive/canceling casts and fixed map boundaries.
-
-Development screenshots are generated under `Library/HexSpellVerificationV2`, outside imported assets.
-Project-owned placeholder icons under `Assets/Prefabs/HexWave/SpellIcons` are copies of package visuals;
-their Sprite import settings do not modify AbyssToolKit. All implementation changes are under Assets.
+Tools > Hex Wave > Verify Spell Simulation runs isolated deterministic checks: all skill rotations, finite states and retirement, charge/hold/cancel, snapshot isolation, delayed execution, exact three-wall addition, aggregate cancellation, older-wave contacts, dynamic wall retirement/expiry, overlapping leases, absorption width, blocked events, height damage and editor canvas transforms.
+Manual game check: select slot 2, cancel an early hold, then hold to READY and release. Select slot 3 to inspect temporary purple walls and their expiry. Reopen/use the editor across Play Mode transitions and confirm its columns remain visible.

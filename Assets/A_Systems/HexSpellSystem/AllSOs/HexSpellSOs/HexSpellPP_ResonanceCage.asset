@@ -15,48 +15,14 @@ MonoBehaviour:
   enumKey: 6
   stringKey: 
   displayName: Resonance Cage
-  description: A radius-three enclosure pumps at its edges for 2.2s with a shared
-    35-energy budget, then absorbs.
+  description: A temporary Amplify wall ring boosts every contacting wave for 2.2s after release.
   icon: {fileID: 21300000, guid: fd8ed8efc609cf842afd24659d9ebad7, type: 3}
   strength: 1
-  edgeMode: 3
+  edgeMode: 0
   edgeDamping: 5
   absorptionWidth: 2
-  amplification:
-    gain: 1.6
-    triggerThreshold: 0.015
-    triggerCooldown: 0.16
-    activeDuration: 2.2
-    energyBudget: 35
-    maxTriggers: 24
-    fallbackMode: 0
   chargeDuration: 0.6
-  holdDuration: 0
-  heightFromImpulse:
-    serializedVersion: 2
-    m_Curve:
-    - serializedVersion: 3
-      time: 0
-      value: 0
-      inSlope: 0
-      outSlope: 0.1
-      tangentMode: 0
-      weightedMode: 0
-      inWeight: 0
-      outWeight: 0
-    - serializedVersion: 3
-      time: 10
-      value: 1
-      inSlope: 0.1
-      outSlope: 0
-      tangentMode: 0
-      weightedMode: 0
-      inWeight: 0
-      outWeight: 0
-    m_PreInfinity: 2
-    m_PostInfinity: 2
-    m_RotationOrder: 4
-  boundaryEdges: []
+  wallDuration: 2.2
   region:
   - a: -3
     b: 0
@@ -174,62 +140,176 @@ MonoBehaviour:
       a: 0
       b: 0
       c: 0
-    time: 0
+    releaseDelay: 0
     impulse: 10
     mode: 0
     targetHeight: 0
-    heightFromStrength: 0
   - offset:
       a: 0
       b: 1
       c: -1
-    time: 0.15
+    releaseDelay: 0.15
     impulse: 2
     mode: 0
     targetHeight: 0
-    heightFromStrength: 0
   - offset:
       a: 1
       b: 0
       c: -1
-    time: 0.15
+    releaseDelay: 0.15
     impulse: 2
     mode: 0
     targetHeight: 0
-    heightFromStrength: 0
   - offset:
       a: 1
       b: -1
       c: 0
-    time: 0.15
+    releaseDelay: 0.15
     impulse: 2
     mode: 0
     targetHeight: 0
-    heightFromStrength: 0
   - offset:
       a: 0
       b: -1
       c: 1
-    time: 0.15
+    releaseDelay: 0.15
     impulse: 2
     mode: 0
     targetHeight: 0
-    heightFromStrength: 0
   - offset:
       a: -1
       b: 0
       c: 1
-    time: 0.15
+    releaseDelay: 0.15
     impulse: 2
     mode: 0
     targetHeight: 0
-    heightFromStrength: 0
   - offset:
       a: -1
       b: 1
       c: 0
-    time: 0.15
+    releaseDelay: 0.15
     impulse: 2
     mode: 0
     targetHeight: 0
-    heightFromStrength: 0
+  walls:
+  - offset:
+      a: -3
+      b: -1
+      c: 4
+    response: 3
+  - offset:
+      a: -4
+      b: 0
+      c: 4
+    response: 3
+  - offset:
+      a: -4
+      b: 1
+      c: 3
+    response: 3
+  - offset:
+      a: -4
+      b: 2
+      c: 2
+    response: 3
+  - offset:
+      a: -4
+      b: 3
+      c: 1
+    response: 3
+  - offset:
+      a: -3
+      b: 4
+      c: -1
+    response: 3
+  - offset:
+      a: -4
+      b: 4
+      c: 0
+    response: 3
+  - offset:
+      a: -2
+      b: -2
+      c: 4
+    response: 3
+  - offset:
+      a: -2
+      b: 4
+      c: -2
+    response: 3
+  - offset:
+      a: -1
+      b: -3
+      c: 4
+    response: 3
+  - offset:
+      a: -1
+      b: 4
+      c: -3
+    response: 3
+  - offset:
+      a: 1
+      b: -4
+      c: 3
+    response: 3
+  - offset:
+      a: 0
+      b: -4
+      c: 4
+    response: 3
+  - offset:
+      a: 0
+      b: 4
+      c: -4
+    response: 3
+  - offset:
+      a: 1
+      b: 3
+      c: -4
+    response: 3
+  - offset:
+      a: 2
+      b: -4
+      c: 2
+    response: 3
+  - offset:
+      a: 2
+      b: 2
+      c: -4
+    response: 3
+  - offset:
+      a: 3
+      b: -4
+      c: 1
+    response: 3
+  - offset:
+      a: 3
+      b: 1
+      c: -4
+    response: 3
+  - offset:
+      a: 4
+      b: -3
+      c: -1
+    response: 3
+  - offset:
+      a: 4
+      b: -4
+      c: 0
+    response: 3
+  - offset:
+      a: 4
+      b: -2
+      c: -2
+    response: 3
+  - offset:
+      a: 4
+      b: -1
+      c: -3
+    response: 3
+  - offset:
+      a: 4
+      b: 0
+      c: -4
+    response: 3

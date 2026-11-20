@@ -22,4 +22,5 @@ MonoBehaviour:
   - {fileID: 11400000, guid: 29894f4355e780b469f2f4f0fd737456, type: 2}
   - {fileID: 11400000, guid: 0a2bcd28110bc1f44a0bfb043c7762bf, type: 2}
   - {fileID: 11400000, guid: 658ded7ef2104f74180342704043efec, type: 2}
+  - {fileID: 11400000, guid: 95d6aa4707482bd47985bed5befbad35, type: 2}
   scanFolder: A_Systems/HexSpellSystem/AllSOs/HexSpellSOs

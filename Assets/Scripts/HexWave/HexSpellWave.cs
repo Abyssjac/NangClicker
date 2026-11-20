@@ -11,300 +11,316 @@ namespace NangClicker.HexWave
         public float sleepHeight, sleepVelocity;
         public int sleepSteps, minimumSubsteps;
     }
-    public enum HexMotionControl { Free = 0, Holding = 1, Charging = 2 }
+    public enum HexMotionControl { Free = 0, Holding = 1, Charging = 2, Recovering = 3 }
+    public enum HexCastPhase { Charging, Ready, Released, Cancelled, Finished }
 
-    /// <summary>One immutable cast and its independent contributions. Controlled lifts do not couple
-    /// to neighbors until released. All free fields use the same solver in game and editor.</summary>
+    /// <summary>Immutable cast data and isolated contributions. Shared walls/boosts are coordinated by HexWaveWorld.</summary>
     public sealed class HexSpellWave
     {
-        private sealed class Domain
+        private sealed class Scheduled
         {
-            public readonly List<HexCoordinate> cells = new List<HexCoordinate>();
-            public readonly Dictionary<HexCoordinate, int> indices = new Dictionary<HexCoordinate, int>();
-            public readonly int[,] neighbors;
-            public readonly HexBoundarySource[,] boundary;
-            public readonly List<Band>[] bands;
-            public readonly List<HexBoundarySource> sources = new List<HexBoundarySource>();
-            public readonly HexWaveSettings settings;
-            public struct Band { public HexBoundarySource source; public float weight; }
-
-            public Domain(HexSpellProperty spell, HexCoordinate origin, int direction, HexWaveSettings settings,
-                Predicate<HexCoordinate> movable, Func<HexCoordinate, HexBoundarySource> mapBoundary, double start)
-            {
-                this.settings = settings;
-                var mask = new HashSet<HexCoordinate>();
-                foreach (var offset in spell.region) mask.Add(origin + offset.Rotate(direction));
-                foreach (var cell in mask) if (movable(cell)) cells.Add(cell);
-                cells.Sort();
-                for (int i = 0; i < cells.Count; i++) indices.Add(cells[i], i);
-                neighbors = new int[cells.Count, 6]; boundary = new HexBoundarySource[cells.Count, 6];
-                bands = new List<Band>[cells.Count];
-                var defaultSource = new HexBoundarySource(spell.Boundary, start);
-                var fixedSource = new HexBoundarySource(HexBoundarySettings.Fixed, start, true);
-                var overrides = new Dictionary<string, HexBoundarySource>();
-                foreach (var edge in spell.boundaryEdges)
-                    overrides.Add((origin + edge.offset.Rotate(direction)) + ":" + ((edge.direction + direction) % 6),
-                        new HexBoundarySource(edge.response, start));
-                var seeds = new Dictionary<HexBoundarySource, HashSet<int>>();
-                for (int i = 0; i < cells.Count; i++)
-                {
-                    bands[i] = new List<Band>();
-                    for (int d = 0; d < 6; d++)
-                    {
-                        var next = cells[i].GetNeighbor(d);
-                        if (indices.TryGetValue(next, out int j)) { neighbors[i, d] = j; continue; }
-                        neighbors[i, d] = -1;
-                        HexBoundarySource source;
-                        // Scene geometry takes precedence; a spell override never opens a real wall.
-                        if (!movable(next)) source = mapBoundary?.Invoke(next) ?? fixedSource;
-                        else if (!overrides.TryGetValue(cells[i] + ":" + d, out source)) source = defaultSource;
-                        boundary[i, d] = source;
-                        if (!seeds.TryGetValue(source, out var set)) { set = new HashSet<int>(); seeds.Add(source, set); sources.Add(source); }
-                        set.Add(i);
-                    }
-                }
-                foreach (var pair in seeds)
-                {
-                    int width = Mathf.Max(1, pair.Key.Settings.absorptionWidth);
-                    var distances = new int[cells.Count];
-                    for (int i = 0; i < distances.Length; i++) distances[i] = int.MaxValue;
-                    var queue = new Queue<int>();
-                    foreach (int i in pair.Value) { distances[i] = 0; queue.Enqueue(i); }
-                    while (queue.Count > 0)
-                    {
-                        int i = queue.Dequeue();
-                        bands[i].Add(new Band { source = pair.Key, weight = 1f - (float)distances[i] / width });
-                        if (distances[i] + 1 >= width) continue;
-                        for (int d = 0; d < 6; d++)
-                        {
-                            int j = neighbors[i, d];
-                            if (j >= 0 && distances[j] > distances[i] + 1)
-                            { distances[j] = distances[i] + 1; queue.Enqueue(j); }
-                        }
-                    }
-                }
-            }
-            public bool FixedSupport(HexBoundarySource source, double time)
-            {
-                var mode = source.ModeAt(time);
-                return mode == HexSpellEdgeMode.Fixed || mode == HexSpellEdgeMode.Amplify ||
-                    (source.IsSceneWall && mode != HexSpellEdgeMode.Free);
-            }
+            public int index;
+            public float delay, value;
+            public HexSpellEventMode mode;
+            public bool done;
         }
-
+        private sealed class Recovery
+        {
+            public int index;
+            public float height, velocity;
+            public double start;
+        }
         private sealed class Field
         {
-            private readonly Domain domain;
-            public float[] height, velocity;
-            private float[] nextHeight, nextVelocity;
-            private int quietSteps;
-            public bool Sleeping { get; private set; }
-            public Field(Domain domain)
+            public float[] height, velocity, nextHeight, nextVelocity;
+            public int quiet;
+            public Field(int n) { height = new float[n]; velocity = new float[n]; nextHeight = new float[n]; nextVelocity = new float[n]; }
+        }
+        internal struct WallDefinition { public HexCoordinate cell; public HexBoundarySettings settings; public HexAmplifySettings amplification; }
+        private readonly HexWaveWorld world;
+        private readonly List<HexCoordinate> cells = new List<HexCoordinate>();
+        private readonly Dictionary<HexCoordinate, int> indices = new Dictionary<HexCoordinate, int>();
+        private readonly List<Scheduled> events = new List<Scheduled>();
+        private readonly List<Field> fields = new List<Field>();
+        private readonly List<Recovery> recoveries = new List<Recovery>();
+        private readonly List<WallDefinition> walls = new List<WallDefinition>();
+        private readonly HexBoundarySource defaultBoundary;
+        private readonly HexWaveSettings settings;
+        private readonly int[,] neighbors;
+        private readonly HexBoundarySource[,] boundaries;
+        private readonly bool[] blocked;
+        private readonly float[] damping;
+        private int wallVersion = -1;
+        private float chargeElapsed;
+        private double releasedAt;
+        private Field impulseField;
+        private const float RecoveryDuration = 0.16f;
+        internal bool AutoRelease { get; }
+        internal float WallDuration { get; }
+        public HexCastPhase Phase { get; private set; } = HexCastPhase.Charging;
+        public float ChargeDuration { get; }
+        public float ChargeProgress => Mathf.Clamp01(chargeElapsed / ChargeDuration);
+        public float ChargeElapsed => chargeElapsed;
+        public HexCoordinate Origin { get; }
+        public int Direction { get; }
+        public int CellCount => cells.Count;
+        public bool IsFinished => Phase == HexCastPhase.Finished;
+        public int PendingEventCount { get { int count = 0; foreach (var e in events) if (!e.done) count++; return count; } }
+        internal HexWaveSettings Settings => settings;
+        internal IReadOnlyList<WallDefinition> Walls => walls;
+
+        internal HexSpellWave(HexWaveWorld world, HexSpellProperty spell, HexCoordinate origin, int direction,
+            float multiplier, HexWaveSettings settings, bool autoRelease)
+        {
+            this.world = world; this.settings = settings; Origin = origin; Direction = (direction % 6 + 6) % 6;
+            ChargeDuration = spell.chargeDuration; WallDuration = spell.wallDuration; AutoRelease = autoRelease;
+            defaultBoundary = new HexBoundarySource(spell.Boundary, false);
+            foreach (var offset in spell.region)
             {
-                this.domain = domain; int n = domain.cells.Count;
-                height = new float[n]; velocity = new float[n]; nextHeight = new float[n]; nextVelocity = new float[n];
+                var c = origin + offset.Rotate(Direction);
+                if (world.BaseMovable(c)) cells.Add(c);
             }
-            public void Integrate(float duration, double start)
+            cells.Sort();
+            for (int i = 0; i < cells.Count; i++) indices.Add(cells[i], i);
+            neighbors = new int[cells.Count, 6]; boundaries = new HexBoundarySource[cells.Count, 6];
+            blocked = new bool[cells.Count]; damping = new float[cells.Count];
+            foreach (var hit in spell.impulses)
+                if (indices.TryGetValue(origin + hit.offset.Rotate(Direction), out int i))
+                    events.Add(new Scheduled { index = i, delay = hit.releaseDelay, mode = hit.mode,
+                        value = hit.mode == HexSpellEventMode.Impulse ? hit.impulse * spell.strength * multiplier : spell.LiftHeight(hit, multiplier) });
+            events.Sort((a, b) => a.delay.CompareTo(b.delay));
+            if (spell.walls != null) foreach (var wall in spell.walls)
             {
-                var s = domain.settings;
-                float highestDamping = s.cOrigin;
-                foreach (var source in domain.sources) highestDamping = Mathf.Max(highestDamping, s.cOrigin + source.Settings.damping);
-                float frequency = Mathf.Sqrt((s.kOrigin + 12f * s.kNeighbor) / s.mass);
-                int steps = Mathf.Max(1, Mathf.Max(s.minimumSubsteps, Mathf.CeilToInt(duration * Mathf.Max(
-                    frequency / 0.35f, (highestDamping + 12f * s.cNeighbor) / (0.5f * s.mass)))));
-                float dt = duration / steps;
-                for (int step = 0; step < steps; step++)
-                {
-                    double now = start + step * dt;
-                    for (int i = 0; i < height.Length; i++)
-                    {
-                        float extraDamping = 0;
-                        foreach (var band in domain.bands[i])
-                            if (band.source.ModeAt(now) == HexSpellEdgeMode.Absorb)
-                                extraDamping = Mathf.Max(extraDamping, band.source.Settings.damping * band.weight);
-                        float force = -s.kOrigin * height[i] - (s.cOrigin + extraDamping) * velocity[i];
-                        for (int d = 0; d < 6; d++)
-                        {
-                            int j = domain.neighbors[i, d];
-                            if (j < 0 && !domain.FixedSupport(domain.boundary[i, d], now)) continue;
-                            force += s.kNeighbor * ((j >= 0 ? height[j] : 0) - height[i]) +
-                                s.cNeighbor * ((j >= 0 ? velocity[j] : 0) - velocity[i]);
-                        }
-                        nextVelocity[i] = velocity[i] + force / s.mass * dt;
-                        nextHeight[i] = height[i] + nextVelocity[i] * dt;
-                    }
-                    // Pump after the shared snapshot calculation; one gate per adjacent cell/source.
-                    for (int i = 0; i < height.Length; i++)
-                        for (int d = 0; d < 6; d++)
-                            if (domain.neighbors[i, d] < 0)
-                            {
-                                var source = domain.boundary[i, d];
-                                bool seen = false;
-                                for (int previous = 0; previous < d; previous++)
-                                    if (ReferenceEquals(domain.boundary[i, previous], source)) { seen = true; break; }
-                                if (!seen) source.TryBoost(domain.cells[i], nextHeight[i], ref nextVelocity[i], s.mass, now + dt);
-                            }
-                    (height, nextHeight) = (nextHeight, height); (velocity, nextVelocity) = (nextVelocity, velocity);
-                }
+                var profile = world.ResolveProfile(wall.response);
+                walls.Add(new WallDefinition { cell = origin + wall.offset.Rotate(Direction),
+                    settings = profile.Settings, amplification = profile.amplification });
             }
-            public void CheckSleep()
-            {
-                var s = domain.settings; bool quiet = true;
-                for (int i = 0; quiet && i < height.Length; i++)
-                    quiet = Mathf.Abs(height[i]) <= s.sleepHeight && Mathf.Abs(velocity[i]) <= s.sleepVelocity;
-                quietSteps = quiet ? quietSteps + 1 : 0;
-                if (quietSteps >= s.sleepSteps)
-                { Array.Clear(height, 0, height.Length); Array.Clear(velocity, 0, velocity.Length); Sleeping = true; }
-            }
-            public float Energy(double time)
-            {
-                var s = domain.settings; float total = 0;
-                for (int i = 0; i < height.Length; i++)
-                {
-                    total += 0.5f * s.mass * velocity[i] * velocity[i] + 0.5f * s.kOrigin * height[i] * height[i];
-                    for (int d = 0; d < 6; d++)
-                    {
-                        int j = domain.neighbors[i, d];
-                        if (j >= 0 && j <= i) continue;
-                        if (j < 0 && !domain.FixedSupport(domain.boundary[i, d], time)) continue;
-                        float difference = height[i] - (j >= 0 ? height[j] : 0);
-                        total += 0.5f * s.kNeighbor * difference * difference;
-                    }
-                }
-                return total;
-            }
+            RefreshTopology();
         }
 
-        private struct Scheduled
-        {
-            public int index;
-            public double time;
-            public HexSpellEventMode mode;
-            public float value;
-        }
-        private struct Lift
-        {
-            public int index;
-            public double start, release;
-            public float height;
-        }
-        private readonly Domain domain;
-        private readonly List<Scheduled> events = new List<Scheduled>();
-        private readonly List<Lift> lifts = new List<Lift>();
-        private readonly List<Field> fields = new List<Field>();
-        private Field impulseField;
-        private readonly double startTime;
-        private readonly float chargeDuration;
-        private double clock;
-        private int nextEvent;
-        public int CellCount => domain.cells.Count;
-        public int PendingEventCount => events.Count - nextEvent + lifts.Count;
-        public bool IsFinished { get; private set; }
-        public double Time => clock;
-        public int ControlledCellCount => lifts.Count;
-        public float AmplificationEnergySpent { get { float result = 0; foreach (var s in domain.sources) result += s.EnergySpent; return result; } }
-        public HexCoordinate GetCoordinate(int i) => domain.cells[i];
+        public HexCoordinate GetCoordinate(int i) => cells[i];
         public float GetHeight(int i)
         {
-            float value = 0; foreach (var field in fields) value += field.height[i];
-            foreach (var lift in lifts) if (lift.index == i) value += SampleLift(lift, false);
-            return value;
+            float h = 0; foreach (var f in fields) h += f.height[i];
+            foreach (var e in events) if (e.index == i && !e.done && e.mode == HexSpellEventMode.LiftAndRelease) h += LiftValue(e, false);
+            foreach (var r in recoveries) if (r.index == i) h += RecoveryValue(r, false);
+            return h;
         }
         public float GetVelocity(int i)
         {
-            float value = 0; foreach (var field in fields) value += field.velocity[i];
-            foreach (var lift in lifts) if (lift.index == i) value += SampleLift(lift, true);
-            return value;
+            float v = 0; foreach (var f in fields) v += f.velocity[i];
+            foreach (var e in events) if (e.index == i && !e.done && e.mode == HexSpellEventMode.LiftAndRelease) v += LiftValue(e, true);
+            foreach (var r in recoveries) if (r.index == i) v += RecoveryValue(r, true);
+            return v;
         }
-        public float GetHeight(HexCoordinate cell) => domain.indices.TryGetValue(cell, out int i) ? GetHeight(i) : 0;
+        public float GetHeight(HexCoordinate cell) => indices.TryGetValue(cell, out int i) ? GetHeight(i) : 0;
+        public float GetVelocity(HexCoordinate cell) => indices.TryGetValue(cell, out int i) ? GetVelocity(i) : 0;
         public HexMotionControl GetControl(HexCoordinate cell)
         {
-            if (!domain.indices.TryGetValue(cell, out int i)) return HexMotionControl.Free;
-            var state = HexMotionControl.Free;
-            foreach (var lift in lifts) if (lift.index == i)
-                state = (HexMotionControl)Mathf.Max((int)state, (int)(clock < lift.start + chargeDuration ? HexMotionControl.Charging : HexMotionControl.Holding));
-            return state;
+            if (!indices.TryGetValue(cell, out int i)) return HexMotionControl.Free;
+            foreach (var r in recoveries) if (r.index == i) return HexMotionControl.Recovering;
+            foreach (var e in events) if (e.index == i && !e.done && e.mode == HexSpellEventMode.LiftAndRelease)
+                return Phase == HexCastPhase.Charging ? HexMotionControl.Charging : HexMotionControl.Holding;
+            return HexMotionControl.Free;
         }
-        private float SampleLift(Lift lift, bool velocity)
+        private float LiftValue(Scheduled e, bool velocity)
         {
-            float u = Mathf.Clamp01((float)((clock - lift.start) / chargeDuration));
-            if (velocity) return lift.height * 30f * u * u * (1f - u) * (1f - u) / chargeDuration;
-            return lift.height * (u * u * u * (10f + u * (-15f + 6f * u)));
+            float u = ChargeProgress;
+            if (velocity) return Phase == HexCastPhase.Charging ? e.value * 30 * u * u * (1 - u) * (1 - u) / ChargeDuration : 0;
+            return e.value * u * u * u * (10 + u * (-15 + 6 * u));
+        }
+        private float RecoveryValue(Recovery r, bool velocity)
+        {
+            float u = Mathf.Clamp01((float)(world.Time - r.start) / RecoveryDuration);
+            if (velocity) return r.height * (6 * u * u - 6 * u) / RecoveryDuration + r.velocity * (3 * u * u - 4 * u + 1);
+            return r.height * (2 * u * u * u - 3 * u * u + 1) + r.velocity * RecoveryDuration * (u * u * u - 2 * u * u + u);
+        }
+        private void Recover(int i, float h, float v)
+        {
+            if (h != 0 || v != 0) recoveries.Add(new Recovery { index = i, height = h, velocity = v, start = world.Time });
+        }
+        public bool Cancel()
+        {
+            if (Phase != HexCastPhase.Charging && Phase != HexCastPhase.Ready) return false;
+            foreach (var e in events)
+            {
+                if (!e.done && e.mode == HexSpellEventMode.LiftAndRelease) Recover(e.index, LiftValue(e, false), LiftValue(e, true));
+                e.done = true;
+            }
+            Phase = HexCastPhase.Cancelled; return true;
+        }
+        internal bool CanCommit()
+        {
+            if (Phase != HexCastPhase.Ready) return false;
+            if (world.IsBlocked(Origin)) return false;
+            foreach (var e in events) if (world.IsBlocked(cells[e.index])) return false;
+            return true;
+        }
+        internal void Commit()
+        {
+            Phase = HexCastPhase.Released; releasedAt = world.Time;
+        }
+        internal double NextBoundary()
+        {
+            double next = double.PositiveInfinity;
+            if (Phase == HexCastPhase.Charging) next = world.Time + Math.Max(0, ChargeDuration - chargeElapsed);
+            if (Phase == HexCastPhase.Released) foreach (var e in events) if (!e.done) next = Math.Min(next, releasedAt + e.delay);
+            foreach (var r in recoveries) next = Math.Min(next, r.start + RecoveryDuration);
+            return next;
+        }
+        internal void AdvanceControl(float dt)
+        {
+            if (Phase == HexCastPhase.Charging)
+            {
+                chargeElapsed = Mathf.Min(ChargeDuration, chargeElapsed + dt);
+                if (chargeElapsed >= ChargeDuration - 1e-6f) { chargeElapsed = ChargeDuration; Phase = HexCastPhase.Ready; }
+            }
+            recoveries.RemoveAll(r => world.Time >= r.start + RecoveryDuration - 1e-8);
+        }
+        internal void ProcessEvents()
+        {
+            if (Phase != HexCastPhase.Released) return;
+            foreach (var e in events)
+            {
+                if (e.done || world.Time + 1e-8 < releasedAt + e.delay) continue;
+                e.done = true;
+                if (blocked[e.index]) continue;
+                if (e.mode == HexSpellEventMode.Impulse)
+                {
+                    if (impulseField == null) { impulseField = new Field(cells.Count); fields.Add(impulseField); }
+                    impulseField.velocity[e.index] += e.value / settings.mass;
+                }
+                else
+                {
+                    var f = new Field(cells.Count); f.height[e.index] = e.value;
+                    fields.Add(f); // Preserve target height and zero endpoint velocity; no additional impulse.
+                }
+            }
+        }
+        internal void RefreshTopology()
+        {
+            if (wallVersion == world.WallVersion) return;
+            wallVersion = world.WallVersion;
+            for (int i = 0; i < cells.Count; i++)
+            {
+                bool nowBlocked = world.IsBlocked(cells[i]);
+                if (nowBlocked && !blocked[i])
+                {
+                    foreach (var f in fields) { Recover(i, f.height[i], f.velocity[i]); f.height[i] = f.velocity[i] = 0; }
+                    foreach (var e in events) if (e.index == i && !e.done && e.mode == HexSpellEventMode.LiftAndRelease)
+                    { Recover(i, LiftValue(e, false), LiftValue(e, true)); e.done = true; }
+                }
+                blocked[i] = nowBlocked; damping[i] = 0;
+            }
+            var seeds = new Dictionary<HexBoundarySource, HashSet<int>>();
+            for (int i = 0; i < cells.Count; i++) for (int d = 0; d < 6; d++)
+            {
+                var next = cells[i].GetNeighbor(d);
+                if (!blocked[i] && indices.TryGetValue(next, out int j) && !blocked[j])
+                { neighbors[i, d] = j; boundaries[i, d] = null; continue; }
+                neighbors[i, d] = -1;
+                var source = world.IsBlocked(next) ? world.GetWallSource(next) : defaultBoundary;
+                boundaries[i, d] = source;
+                if (!blocked[i] && source.Settings.mode == HexSpellEdgeMode.Absorb)
+                {
+                    if (!seeds.TryGetValue(source, out var set)) { set = new HashSet<int>(); seeds.Add(source, set); }
+                    set.Add(i);
+                }
+            }
+            foreach (var pair in seeds)
+            {
+                int width = pair.Key.Settings.absorptionWidth;
+                var distances = new int[cells.Count]; for (int i = 0; i < distances.Length; i++) distances[i] = -1;
+                var queue = new Queue<int>();
+                foreach (int i in pair.Value) { distances[i] = 0; queue.Enqueue(i); }
+                while (queue.Count > 0)
+                {
+                    int i = queue.Dequeue();
+                    damping[i] = Mathf.Max(damping[i], pair.Key.Settings.damping * (1f - (float)distances[i] / width));
+                    if (distances[i] + 1 >= width) continue;
+                    for (int d = 0; d < 6; d++)
+                    {
+                        int j = neighbors[i, d]; if (j >= 0 && distances[j] < 0) { distances[j] = distances[i] + 1; queue.Enqueue(j); }
+                    }
+                }
+            }
+        }
+        private bool FixedSupport(HexBoundarySource source) => source.IsSceneWall ||
+            source.Settings.mode == HexSpellEdgeMode.Fixed || source.Settings.mode == HexSpellEdgeMode.Amplify;
+        internal float MaximumDamping
+        { get { float max = 0; foreach (float c in damping) max = Mathf.Max(max, c); return settings.cOrigin + max; } }
+        internal void Integrate(float dt)
+        {
+            foreach (var f in fields)
+            {
+                for (int i = 0; i < cells.Count; i++)
+                {
+                    if (blocked[i]) { f.nextHeight[i] = f.nextVelocity[i] = 0; continue; }
+                    float force = -settings.kOrigin * f.height[i] - (settings.cOrigin + damping[i]) * f.velocity[i];
+                    for (int d = 0; d < 6; d++)
+                    {
+                        int j = neighbors[i, d];
+                        if (j < 0 && !FixedSupport(boundaries[i, d])) continue;
+                        force += settings.kNeighbor * ((j >= 0 ? f.height[j] : 0) - f.height[i]) +
+                            settings.cNeighbor * ((j >= 0 ? f.velocity[j] : 0) - f.velocity[i]);
+                    }
+                    f.nextVelocity[i] = f.velocity[i] + force / settings.mass * dt;
+                    f.nextHeight[i] = f.height[i] + f.nextVelocity[i] * dt;
+                }
+                (f.height, f.nextHeight) = (f.nextHeight, f.height);
+                (f.velocity, f.nextVelocity) = (f.nextVelocity, f.velocity);
+            }
+        }
+        internal void CollectFree(Dictionary<HexCoordinate, Vector2> snapshot)
+        {
+            for (int i = 0; i < cells.Count; i++) if (!blocked[i])
+            {
+                Vector2 value = Vector2.zero;
+                foreach (var f in fields) value += new Vector2(f.height[i], f.velocity[i]);
+                if (value == Vector2.zero) continue;
+                snapshot.TryGetValue(cells[i], out var previous); snapshot[cells[i]] = previous + value;
+            }
+        }
+        internal void Boost(HexCoordinate cell, float factor)
+        {
+            if (indices.TryGetValue(cell, out int i) && !blocked[i]) foreach (var f in fields) f.velocity[i] *= factor;
+        }
+        internal void CheckSleep()
+        {
+            for (int fIndex = fields.Count - 1; fIndex >= 0; fIndex--)
+            {
+                var f = fields[fIndex]; bool quiet = true;
+                for (int i = 0; quiet && i < cells.Count; i++)
+                    quiet = Mathf.Abs(f.height[i]) <= settings.sleepHeight && Mathf.Abs(f.velocity[i]) <= settings.sleepVelocity;
+                f.quiet = quiet ? f.quiet + 1 : 0;
+                if (f.quiet < settings.sleepSteps) continue;
+                if (ReferenceEquals(f, impulseField)) impulseField = null;
+                fields.RemoveAt(fIndex);
+            }
+            if ((Phase == HexCastPhase.Released || Phase == HexCastPhase.Cancelled) &&
+                PendingEventCount == 0 && fields.Count == 0 && recoveries.Count == 0) Phase = HexCastPhase.Finished;
         }
         public float MechanicalEnergy
         {
             get
             {
-                float total = 0; foreach (var field in fields) total += field.Energy(startTime + clock);
-                foreach (var lift in lifts)
+                float energy = 0;
+                foreach (var f in fields) for (int i = 0; i < cells.Count; i++)
                 {
-                    float h = SampleLift(lift, false), v = SampleLift(lift, true);
-                    float stiffness = domain.settings.kOrigin;
+                    energy += 0.5f * settings.mass * f.velocity[i] * f.velocity[i] + 0.5f * settings.kOrigin * f.height[i] * f.height[i];
                     for (int d = 0; d < 6; d++)
-                        if (domain.neighbors[lift.index, d] >= 0 || domain.FixedSupport(domain.boundary[lift.index, d], startTime + clock))
-                            stiffness += domain.settings.kNeighbor;
-                    total += 0.5f * domain.settings.mass * v * v + 0.5f * stiffness * h * h;
+                    {
+                        int j = neighbors[i, d]; if (j >= 0 && j <= i || j < 0 && !FixedSupport(boundaries[i, d])) continue;
+                        float delta = f.height[i] - (j >= 0 ? f.height[j] : 0); energy += 0.5f * settings.kNeighbor * delta * delta;
+                    }
                 }
-                return total;
-            }
-        }
-
-        public HexSpellWave(HexSpellProperty spell, HexCoordinate origin, int direction, float multiplier,
-            HexWaveSettings settings, Predicate<HexCoordinate> movable,
-            Func<HexCoordinate, HexBoundarySource> mapBoundary = null, double startTime = 0)
-        {
-            direction = (direction % 6 + 6) % 6;
-            this.startTime = startTime; chargeDuration = Mathf.Max(0.01f, spell.chargeDuration);
-            domain = new Domain(spell, origin, direction, settings, movable, mapBoundary, startTime);
-            foreach (var hit in spell.impulses)
-                if (domain.indices.TryGetValue(origin + hit.offset.Rotate(direction), out int index))
-                    events.Add(new Scheduled { index = index, time = hit.time, mode = hit.mode,
-                        value = hit.mode == HexSpellEventMode.Impulse ? hit.impulse * spell.strength * multiplier : spell.LiftHeight(hit, multiplier) });
-            events.Sort((a, b) => a.time.CompareTo(b.time));
-            holdDuration = spell.holdDuration;
-            ProcessDue();
-            IsFinished = CellCount == 0 || events.Count == 0;
-        }
-        private readonly float holdDuration;
-        private void ProcessDue()
-        {
-            while (nextEvent < events.Count && events[nextEvent].time <= clock + 1e-8)
-            {
-                var hit = events[nextEvent++];
-                if (hit.mode == HexSpellEventMode.Impulse)
+                foreach (var e in events) if (!e.done && e.mode == HexSpellEventMode.LiftAndRelease)
                 {
-                    if (impulseField == null) { impulseField = new Field(domain); fields.Add(impulseField); }
-                    impulseField.velocity[hit.index] += hit.value / domain.settings.mass;
+                    float h = LiftValue(e, false), v = LiftValue(e, true);
+                    energy += 0.5f * settings.mass * v * v + 0.5f * (settings.kOrigin + 6 * settings.kNeighbor) * h * h;
                 }
-                else lifts.Add(new Lift { index = hit.index, start = hit.time, release = hit.time + chargeDuration + holdDuration, height = hit.value });
+                return energy;
             }
-            for (int i = lifts.Count - 1; i >= 0; i--)
-                if (lifts[i].release <= clock + 1e-8)
-                {
-                    var field = new Field(domain);
-                    field.height[lifts[i].index] = lifts[i].height; // Endpoints have exactly zero velocity: no extra impulse.
-                    fields.Add(field); lifts.RemoveAt(i);
-                }
-        }
-        public void Step(float deltaTime)
-        {
-            if (IsFinished || deltaTime <= 0) return;
-            double end = clock + deltaTime;
-            while (clock < end - 1e-10)
-            {
-                double stop = nextEvent < events.Count ? Math.Min(end, events[nextEvent].time) : end;
-                foreach (var lift in lifts) stop = Math.Min(stop, lift.release);
-                if (stop > clock) foreach (var field in fields) field.Integrate((float)(stop - clock), startTime + clock);
-                clock = stop; ProcessDue();
-            }
-            for (int i = fields.Count - 1; i >= 0; i--)
-            {
-                fields[i].CheckSleep();
-                if (!fields[i].Sleeping) continue;
-                if (ReferenceEquals(fields[i], impulseField)) impulseField = null;
-                fields.RemoveAt(i);
-            }
-            IsFinished = PendingEventCount == 0 && fields.Count == 0;
         }
     }
 }

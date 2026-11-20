@@ -54,7 +54,7 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 6961653617491484666, guid: 6d2e17855d1197545a326b1e823073f3, type: 3}
       propertyPath: allDatabases.Array.size
-      value: 1
+      value: 2
       objectReference: {fileID: 0}
     - target: {fileID: 6961653617491484666, guid: 6d2e17855d1197545a326b1e823073f3, type: 3}
       propertyPath: 'allDatabases.Array.data[0]'
@@ -63,7 +63,7 @@ PrefabInstance:
     - target: {fileID: 6961653617491484666, guid: 6d2e17855d1197545a326b1e823073f3, type: 3}
       propertyPath: 'allDatabases.Array.data[1]'
       value: 
-      objectReference: {fileID: 11400000, guid: 832201593defa0042965c03caacfc112, type: 2}
+      objectReference: {fileID: 11400000, guid: b4218ab3da825be4da5a7cd85d3c03c1, type: 2}
     - target: {fileID: 6961653617491484666, guid: 6d2e17855d1197545a326b1e823073f3, type: 3}
       propertyPath: 'allDatabases.Array.data[2]'
       value: 
@@ -92,6 +92,6 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: a8c61c64bc156f24a9beacd33f8cb9fc, type: 3}
-  m_Name:
+  m_Name: 
   m_EditorClassIdentifier: Abyss.General.Runtime::AllCameraManager
   defaultCameraMode: 20

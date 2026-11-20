@@ -1,566 +1,169 @@
 using System;
 using System.Collections.Generic;
+using JackyUtility;
 using UnityEngine;
 
 namespace NangClicker.HexWave
 {
-    [DefaultExecutionOrder(-100)]
-    [DisallowMultipleComponent]
+    [DefaultExecutionOrder(-100), DisallowMultipleComponent]
     public sealed class HexWaveManager : MonoBehaviour
     {
-        [Serializable]
-        private readonly struct Edge
-        {
-            public int First { get; }
-            public int Second { get; }
-
-            public Edge(int first, int second)
-            {
-                First = first;
-                Second = second;
-            }
-        }
-
         [Header("Grid Authoring")]
         [SerializeField] private Transform cellsRoot;
         [SerializeField] private HexCellView cellPrefab;
-        [Min(0.001f)] [SerializeField] private float spacing = 1.1f;
-
+        [Min(0.001f), SerializeField] private float spacing = 1.1f;
         [Header("Mass-Spring-Damper")]
-        [Min(0.0001f)] [SerializeField] private float mass = 1f;
-        [Min(0f)] [SerializeField] private float kOrigin = 20f;
-        [Min(0f)] [SerializeField] private float cOrigin = 1.8f;
-        [Min(0f)] [SerializeField] private float kNeighbor = 35f;
-        [Min(0f)] [SerializeField] private float cNeighbor = 0.6f;
-        [Range(1, 16)] [SerializeField] private int physicsSubsteps = 1;
-
-        [Header("Impulse")]
-        [SerializeField] private float defaultImpulse = 8f;
-        [SerializeField] private List<HexImpulseRing> impulseProfile = new List<HexImpulseRing>
-        {
-            new HexImpulseRing(0, 1f)
-        };
-
+        [Min(0.0001f), SerializeField] private float mass = 1;
+        [Min(0), SerializeField] private float kOrigin = 20;
+        [Min(0), SerializeField] private float cOrigin = 1.8f;
+        [Min(0), SerializeField] private float kNeighbor = 35;
+        [Min(0), SerializeField] private float cNeighbor = 0.6f;
+        [Range(1, 16), SerializeField] private int physicsSubsteps = 1;
         [Header("Sleep")]
-        [Min(0f)] [SerializeField] private float sleepHeightThreshold = 0.0005f;
-        [Min(0f)] [SerializeField] private float sleepVelocityThreshold = 0.0005f;
-        [Min(1)] [SerializeField] private int sleepSteps = 12;
-
+        [Min(0), SerializeField] private float sleepHeightThreshold = 0.0005f;
+        [Min(0), SerializeField] private float sleepVelocityThreshold = 0.0005f;
+        [Min(1), SerializeField] private int sleepSteps = 12;
         [Header("Debug")]
         [SerializeField] private bool drawBoundaryGizmos = true;
-
-        private readonly Dictionary<HexCoordinate, int> coordinateToIndex =
-            new Dictionary<HexCoordinate, int>();
-        private readonly List<Edge> edges = new List<Edge>();
-        private readonly Queue<HexImpulseRequest> pendingImpulses = new Queue<HexImpulseRequest>();
-
+        private readonly Dictionary<HexCoordinate, int> coordinateToIndex = new Dictionary<HexCoordinate, int>();
+        private readonly Dictionary<HexCoordinate, HexBoundarySource> sceneSources = new Dictionary<HexCoordinate, HexBoundarySource>();
         private HexCellView[] cells = Array.Empty<HexCellView>();
-        private int[,] neighbors = new int[0, 0];
         private bool[] fixedBoundary = Array.Empty<bool>();
-        private bool[] sleeping = Array.Empty<bool>();
-        private int[] quietStepCounts = Array.Empty<int>();
-        private float[] heights = Array.Empty<float>();
-        private float[] previousHeights = Array.Empty<float>();
-        private float[] velocities = Array.Empty<float>();
-        private float[] nextHeights = Array.Empty<float>();
-        private float[] nextVelocities = Array.Empty<float>();
-        private float[] forces = Array.Empty<float>();
+        private float[] heights = Array.Empty<float>(), previousHeights = Array.Empty<float>(), velocities = Array.Empty<float>();
+        private HexWaveWorld world;
+        private HexBoundaryProfileDatabase profileDatabase;
         private bool initialized;
         private int topologyVersion;
-        private readonly List<HexSpellWave> spellWaves = new List<HexSpellWave>();
-        private float[] spellHeights = Array.Empty<float>();
-        private float[] spellVelocities = Array.Empty<float>();
-        private double simulationClock;
-        private readonly Dictionary<HexCoordinate, HexBoundarySource> wallSources = new Dictionary<HexCoordinate, HexBoundarySource>();
-        public HexBoundarySource GetWallSource(HexCoordinate coordinate)
-        {
-            if (!wallSources.TryGetValue(coordinate, out var source))
-            {
-                var response = TryGetCell(coordinate, out var cell) && cell.IsWall ? cell.WallResponse : HexBoundarySettings.Fixed;
-                source = new HexBoundarySource(response, simulationClock, true); wallSources.Add(coordinate, source);
-            }
-            return source;
-        }
-        public void RearmWall(HexCoordinate coordinate) { GetWallSource(coordinate).Rearm(simulationClock); }
-        public HexSpellEdgeMode GetWallResponseMode(HexCoordinate coordinate) => wallSources.TryGetValue(coordinate, out var source)
-            ? source.ModeAt(simulationClock) : TryGetCell(coordinate, out var cell) && cell.IsWall ? cell.WallResponse.mode : HexSpellEdgeMode.Fixed;
-        public HexMotionControl GetMotionControl(HexCoordinate coordinate)
-        {
-            var state = HexMotionControl.Free;
-            foreach (var wave in spellWaves) state = (HexMotionControl)Mathf.Max((int)state, (int)wave.GetControl(coordinate));
-            return state;
-        }
-        public int ActiveWaveCount => spellWaves.Count;
+        public Transform CellsRoot => cellsRoot != null ? cellsRoot : transform;
+        public HexCellView CellPrefab => cellPrefab;
+        public float Spacing => spacing;
+        public int CellCount => cells.Length;
+        public bool IsInitialized => initialized;
+        public int TopologyVersion => topologyVersion;
+        public HexWaveWorld World => world;
+        public int ActiveWaveCount => world?.Casts.Count ?? 0;
         public int PendingCastCount
-        {
-            get { int count = 0; foreach (var wave in spellWaves) if (wave.PendingEventCount > 0) count++; return count; }
-        }
+        { get { int n = 0; if (world != null) foreach (var cast in world.Casts) if (cast.PendingEventCount > 0) n++; return n; } }
         public HexWaveSettings SimulationSettings => new HexWaveSettings
         {
             mass = mass, kOrigin = kOrigin, cOrigin = cOrigin, kNeighbor = kNeighbor, cNeighbor = cNeighbor,
             sleepHeight = sleepHeightThreshold, sleepVelocity = sleepVelocityThreshold,
             sleepSteps = sleepSteps, minimumSubsteps = physicsSubsteps
         };
-
         public event Action<HexWaveManager> TopologyRebuilt;
-
-        public Transform CellsRoot => cellsRoot != null ? cellsRoot : transform;
-        public HexCellView CellPrefab => cellPrefab;
-        public float Spacing => spacing;
-        public float DefaultImpulse => defaultImpulse;
-        public int CellCount => cells.Length;
-        public bool IsInitialized => initialized;
-        public int TopologyVersion => topologyVersion;
-
-        private void Awake()
+        private void Awake() => RebuildGrid();
+        private void FixedUpdate() => AdvanceSimulation(Time.fixedDeltaTime);
+        public HexBoundaryProfileProperty GetBoundaryProfile(Key_HexBoundaryProfilePP key)
         {
-            RebuildGrid();
+            if (profileDatabase == null && PropertyDatabaseManager.Instance != null)
+                profileDatabase = PropertyDatabaseManager.Instance.GetDatabase<HexBoundaryProfileDatabase>();
+            return profileDatabase != null ? profileDatabase.GetByEnum(key) : null;
         }
-
-        private void FixedUpdate()
+        private HexBoundarySource SceneSource(HexCoordinate coordinate)
         {
-            AdvanceSimulation(Time.fixedDeltaTime);
-        }
-
-        public void AdvanceSimulation(float deltaTime)
-        {
-            if (deltaTime <= 0f) return;
-            if (!initialized && !RebuildGrid())
-                return;
-
-            if (cells.Length == 0)
-                return;
-
-            for (int i = 0; i < cells.Length; i++) previousHeights[i] = GetCurrentHeight(i);
-            ConsumePendingImpulses();
-
-            float substepDeltaTime = deltaTime / physicsSubsteps;
-            for (int step = 0; step < physicsSubsteps; step++)
-                SimulateSubstep(substepDeltaTime);
-            Array.Clear(spellHeights, 0, spellHeights.Length);
-            Array.Clear(spellVelocities, 0, spellVelocities.Length);
-            for (int w = spellWaves.Count - 1; w >= 0; w--)
+            if (!sceneSources.TryGetValue(coordinate, out var source))
             {
-                HexSpellWave wave = spellWaves[w];
-                wave.Step(deltaTime);
-                for (int j = 0; j < wave.CellCount; j++)
-                    if (coordinateToIndex.TryGetValue(wave.GetCoordinate(j), out int i))
-                    { spellHeights[i] += wave.GetHeight(j); spellVelocities[i] += wave.GetVelocity(j); }
-                if (wave.IsFinished) spellWaves.RemoveAt(w);
+                var response = TryGetCell(coordinate, out var cell) && cell.IsWall ? cell.WallResponse : HexBoundarySettings.Fixed;
+                var profile = GetBoundaryProfile(response.profile);
+                source = new HexBoundarySource(response, true, profile != null ? profile.amplification : HexAmplifySettings.Default);
+                sceneSources.Add(coordinate, source);
             }
-            simulationClock += deltaTime;
+            return source;
         }
-
-        public bool IsMovable(HexCoordinate coordinate) =>
-            coordinateToIndex.TryGetValue(coordinate, out int i) && !fixedBoundary[i];
-
-        public bool CastSpell(HexSpellProperty spell, HexCoordinate origin, int direction, float multiplier = 1f)
+        public HexBoundarySource GetWallSource(HexCoordinate coordinate) => world != null ? world.GetWallSource(coordinate) : SceneSource(coordinate);
+        public HexSpellEdgeMode GetWallResponseMode(HexCoordinate coordinate) => GetWallSource(coordinate).Settings.mode;
+        public HexMotionControl GetMotionControl(HexCoordinate coordinate) => world?.Control(coordinate) ?? HexMotionControl.Free;
+        private bool BaseMovable(HexCoordinate coordinate) => coordinateToIndex.TryGetValue(coordinate, out int i) && !fixedBoundary[i];
+        public bool IsMovable(HexCoordinate coordinate) => BaseMovable(coordinate) && (world == null || !world.IsBlocked(coordinate));
+        public bool IsWaveWall(HexCoordinate coordinate) => !BaseMovable(coordinate) || world != null && world.IsTemporaryWall(coordinate);
+        public bool CanCastSpell(HexSpellProperty spell, HexCoordinate origin, int direction, float multiplier = 1)
+        { if (!initialized && !RebuildGrid()) return false; return world.CanBegin(spell, origin, direction, multiplier); }
+        public HexSpellWave BeginSpell(HexSpellProperty spell, HexCoordinate origin, int direction, float multiplier = 1)
+        {
+            if (!initialized && !RebuildGrid()) return null;
+            return world.BeginCast(spell, origin, direction, SimulationSettings, multiplier);
+        }
+        public bool ReleaseSpell(HexSpellWave cast)
+        { bool result = world != null && world.ReleaseCast(cast); RefreshSnapshot(); return result; }
+        public void CancelSpell(HexSpellWave cast) { cast?.Cancel(); RefreshSnapshot(); }
+        /// <summary>Automation entry: performs the full charge, then releases. Player input uses BeginSpell/ReleaseSpell.</summary>
+        public bool CastSpell(HexSpellProperty spell, HexCoordinate origin, int direction, float multiplier = 1)
         {
             if (!initialized && !RebuildGrid()) return false;
-            if (spell == null || !spell.Validate(out _) || !IsMovable(origin) ||
-                float.IsNaN(multiplier) || float.IsInfinity(multiplier)) return false;
-            if (float.IsInfinity(spell.strength * multiplier) || float.IsNaN(spell.strength * multiplier)) return false;
-            var wave = new HexSpellWave(spell, origin, direction, multiplier, SimulationSettings, IsMovable, GetWallSource, simulationClock);
-            if (wave.IsFinished) return false;
-            spellWaves.Add(wave);
-            return true;
+            return world.BeginCast(spell, origin, direction, SimulationSettings, multiplier, true) != null;
         }
-
+        public void AdvanceSimulation(float deltaTime)
+        {
+            if (!HexSpellProperty.Finite(deltaTime) || deltaTime <= 0 || !initialized && !RebuildGrid()) return;
+            Array.Copy(heights, previousHeights, heights.Length);
+            world.Step(deltaTime); RefreshSnapshot();
+        }
+        private void RefreshSnapshot()
+        {
+            if (world == null) return;
+            for (int i = 0; i < cells.Length; i++)
+            { heights[i] = world.Height(cells[i].Coordinate); velocities[i] = world.Velocity(cells[i].Coordinate); }
+        }
         private void OnValidate()
         {
-            mass = Mathf.Max(0.0001f, mass);
-            spacing = Mathf.Max(0.001f, spacing);
-            kOrigin = Mathf.Max(0f, kOrigin);
-            cOrigin = Mathf.Max(0f, cOrigin);
-            kNeighbor = Mathf.Max(0f, kNeighbor);
-            cNeighbor = Mathf.Max(0f, cNeighbor);
+            mass = Mathf.Max(0.0001f, mass); spacing = Mathf.Max(0.001f, spacing);
+            kOrigin = Mathf.Max(0, kOrigin); cOrigin = Mathf.Max(0, cOrigin);
+            kNeighbor = Mathf.Max(0, kNeighbor); cNeighbor = Mathf.Max(0, cNeighbor);
             physicsSubsteps = Mathf.Clamp(physicsSubsteps, 1, 16);
-            sleepHeightThreshold = Mathf.Max(0f, sleepHeightThreshold);
-            sleepVelocityThreshold = Mathf.Max(0f, sleepVelocityThreshold);
+            sleepHeightThreshold = Mathf.Max(0, sleepHeightThreshold); sleepVelocityThreshold = Mathf.Max(0, sleepVelocityThreshold);
             sleepSteps = Mathf.Max(1, sleepSteps);
-
-            if (impulseProfile == null)
-                impulseProfile = new List<HexImpulseRing>();
-
-            if (impulseProfile.Count == 0)
-                impulseProfile.Add(new HexImpulseRing(0, 1f));
         }
-
         public void ConfigureAuthoring(HexCellView prefab, Transform root, float cellSpacing)
-        {
-            cellPrefab = prefab;
-            cellsRoot = root;
-            spacing = Mathf.Max(0.001f, cellSpacing);
-        }
-
+        { cellPrefab = prefab; cellsRoot = root; spacing = Mathf.Max(0.001f, cellSpacing); }
         public bool RebuildGrid()
         {
-            Transform root = CellsRoot;
-            HexCellView[] discoveredCells = root.GetComponentsInChildren<HexCellView>(true);
-            Array.Sort(discoveredCells, (left, right) => left.Coordinate.CompareTo(right.Coordinate));
-
+            var discovered = CellsRoot.GetComponentsInChildren<HexCellView>(true);
+            Array.Sort(discovered, (a, b) => a.Coordinate.CompareTo(b.Coordinate));
             coordinateToIndex.Clear();
-            edges.Clear();
-
-            for (int i = 0; i < discoveredCells.Length; i++)
+            for (int i = 0; i < discovered.Length; i++)
+                if (!discovered[i].Coordinate.IsValid || !coordinateToIndex.TryAdd(discovered[i].Coordinate, i))
+                { Debug.LogError("[HexWaveManager] Invalid or duplicate coordinate: " + discovered[i].Coordinate, discovered[i]); initialized = false; return false; }
+            cells = discovered; fixedBoundary = new bool[cells.Length];
+            heights = new float[cells.Length]; previousHeights = new float[cells.Length]; velocities = new float[cells.Length];
+            sceneSources.Clear();
+            for (int i = 0; i < cells.Length; i++)
             {
-                HexCellView cell = discoveredCells[i];
-                if (!cell.Coordinate.IsValid)
-                {
-                    Debug.LogError($"[{nameof(HexWaveManager)}] Cell '{cell.name}' has invalid coordinate {cell.Coordinate}.", cell);
-                    initialized = false;
-                    return false;
-                }
-
-                if (!coordinateToIndex.TryAdd(cell.Coordinate, i))
-                {
-                    Debug.LogError($"[{nameof(HexWaveManager)}] Duplicate coordinate {cell.Coordinate}.", cell);
-                    initialized = false;
-                    return false;
-                }
+                bool boundary = cells[i].IsWall;
+                for (int d = 0; d < 6; d++) if (!coordinateToIndex.ContainsKey(cells[i].Coordinate.GetNeighbor(d))) boundary = true;
+                fixedBoundary[i] = boundary;
+                if (!Application.isPlaying || !initialized) cells[i].CaptureBaseLocalPosition();
+                cells[i].SetRuntimeBinding(i, boundary); cells[i].ApplyHeight(0);
             }
-
-            cells = discoveredCells;
-            int count = cells.Length;
-            neighbors = new int[count, 6];
-            fixedBoundary = new bool[count];
-            sleeping = new bool[count];
-            quietStepCounts = new int[count];
-            heights = new float[count];
-            previousHeights = new float[count];
-            velocities = new float[count];
-            nextHeights = new float[count];
-            nextVelocities = new float[count];
-            forces = new float[count];
-            spellHeights = new float[count];
-            spellVelocities = new float[count];
-            spellWaves.Clear();
-            wallSources.Clear(); simulationClock = 0;
-
-            for (int i = 0; i < count; i++)
-            {
-                bool boundary = false;
-                for (int direction = 0; direction < 6; direction++)
-                {
-                    HexCoordinate neighborCoordinate = cells[i].Coordinate.GetNeighbor(direction);
-                    if (coordinateToIndex.TryGetValue(neighborCoordinate, out int neighborIndex))
-                    {
-                        neighbors[i, direction] = neighborIndex;
-                        if (i < neighborIndex)
-                            edges.Add(new Edge(i, neighborIndex));
-                    }
-                    else
-                    {
-                        neighbors[i, direction] = -1;
-                        boundary = true;
-                    }
-                }
-
-                fixedBoundary[i] = boundary || cells[i].IsWall;
-                sleeping[i] = fixedBoundary[i];
-                if (!Application.isPlaying || !initialized)
-                    cells[i].CaptureBaseLocalPosition();
-                cells[i].SetRuntimeBinding(i, fixedBoundary[i]);
-                cells[i].ApplyHeight(0f);
-            }
-
-            pendingImpulses.Clear();
-            initialized = true;
-            topologyVersion++;
-            TopologyRebuilt?.Invoke(this);
-            return true;
+            world = new HexWaveWorld(BaseMovable, SceneSource, GetBoundaryProfile);
+            initialized = true; topologyVersion++; TopologyRebuilt?.Invoke(this); return true;
         }
-
         public void ResetSimulation()
         {
-            if (!initialized)
-                return;
-            spellWaves.Clear();
-            wallSources.Clear(); simulationClock = 0;
-            Array.Clear(spellHeights, 0, spellHeights.Length);
-            Array.Clear(spellVelocities, 0, spellVelocities.Length);
-
-            Array.Clear(heights, 0, heights.Length);
-            Array.Clear(previousHeights, 0, previousHeights.Length);
-            Array.Clear(velocities, 0, velocities.Length);
-            Array.Clear(nextHeights, 0, nextHeights.Length);
-            Array.Clear(nextVelocities, 0, nextVelocities.Length);
-            Array.Clear(forces, 0, forces.Length);
-            Array.Clear(quietStepCounts, 0, quietStepCounts.Length);
-            pendingImpulses.Clear();
-
-            for (int i = 0; i < cells.Length; i++)
-            {
-                sleeping[i] = fixedBoundary[i];
-                cells[i].ApplyHeight(0f);
-            }
+            world?.Reset(); sceneSources.Clear();
+            Array.Clear(heights, 0, heights.Length); Array.Clear(previousHeights, 0, previousHeights.Length); Array.Clear(velocities, 0, velocities.Length);
+            foreach (var cell in cells) if (cell != null) cell.ApplyHeight(0);
         }
-
-        public bool EnqueueImpulse(HexCoordinate center, float totalImpulse)
-        {
-            if (!initialized && !RebuildGrid())
-                return false;
-
-            if (!coordinateToIndex.TryGetValue(center, out int centerIndex) || fixedBoundary[centerIndex])
-                return false;
-
-            if (Mathf.Approximately(totalImpulse, 0f))
-                return false;
-
-            pendingImpulses.Enqueue(new HexImpulseRequest(center, totalImpulse));
-            return true;
-        }
-
-        public bool EnqueueDefaultImpulse(HexCoordinate center)
-        {
-            return EnqueueImpulse(center, defaultImpulse);
-        }
-
         public bool TryGetCell(HexCoordinate coordinate, out HexCellView cell)
         {
-            if (coordinateToIndex.TryGetValue(coordinate, out int index) && index >= 0 && index < cells.Length)
-            {
-                cell = cells[index];
-                return true;
-            }
-
-            cell = null;
-            return false;
+            if (coordinateToIndex.TryGetValue(coordinate, out int i)) { cell = cells[i]; return true; }
+            cell = null; return false;
         }
-
-        public bool TryGetCellIndex(HexCoordinate coordinate, out int index)
-        {
-            return coordinateToIndex.TryGetValue(coordinate, out index);
-        }
-
-        public HexCellView GetCellView(int index)
-        {
-            return index >= 0 && index < cells.Length ? cells[index] : null;
-        }
-
-        public float GetCurrentHeight(int index)
-        {
-            return index >= 0 && index < heights.Length ? heights[index] + spellHeights[index] : 0f;
-        }
-
-        public float GetPreviousHeight(int index)
-        {
-            return index >= 0 && index < previousHeights.Length ? previousHeights[index] : 0f;
-        }
-
-        public float GetVelocity(int index)
-        {
-            return index >= 0 && index < velocities.Length ? velocities[index] + spellVelocities[index] : 0f;
-        }
-
-        public bool IsFixedBoundary(int index)
-        {
-            return index >= 0 && index < fixedBoundary.Length && fixedBoundary[index];
-        }
-
-        public bool IsSleeping(int index)
-        {
-            return index >= 0 && index < sleeping.Length && sleeping[index] &&
-                Mathf.Abs(spellHeights[index]) <= sleepHeightThreshold && Mathf.Abs(spellVelocities[index]) <= sleepVelocityThreshold;
-        }
-
+        public bool TryGetCellIndex(HexCoordinate coordinate, out int index) => coordinateToIndex.TryGetValue(coordinate, out index);
+        public HexCellView GetCellView(int index) => index >= 0 && index < cells.Length ? cells[index] : null;
+        public float GetCurrentHeight(int index) => index >= 0 && index < heights.Length ? heights[index] : 0;
+        public float GetPreviousHeight(int index) => index >= 0 && index < previousHeights.Length ? previousHeights[index] : 0;
+        public float GetVelocity(int index) => index >= 0 && index < velocities.Length ? velocities[index] : 0;
+        // Navigation retains authored map topology; temporary spell walls only affect wave simulation.
+        public bool IsFixedBoundary(int index) => index >= 0 && index < fixedBoundary.Length && fixedBoundary[index];
+        public bool IsSleeping(int index) => index >= 0 && index < heights.Length &&
+            Mathf.Abs(heights[index]) <= sleepHeightThreshold && Mathf.Abs(velocities[index]) <= sleepVelocityThreshold;
         public float GetTotalMechanicalEnergy()
-        {
-            if (!initialized)
-                return 0f;
-
-            float energy = 0f;
-            for (int i = 0; i < cells.Length; i++)
-            {
-                if (fixedBoundary[i])
-                    continue;
-
-                energy += 0.5f * mass * velocities[i] * velocities[i];
-                energy += 0.5f * kOrigin * heights[i] * heights[i];
-            }
-
-            for (int edgeIndex = 0; edgeIndex < edges.Count; edgeIndex++)
-            {
-                Edge edge = edges[edgeIndex];
-                float difference = heights[edge.First] - heights[edge.Second];
-                energy += 0.5f * kNeighbor * difference * difference;
-            }
-
-            foreach (var wave in spellWaves) energy += wave.MechanicalEnergy;
-            return energy;
-        }
-
-        private void ConsumePendingImpulses()
-        {
-            while (pendingImpulses.Count > 0)
-                ApplyImpulse(pendingImpulses.Dequeue());
-        }
-
-        private void ApplyImpulse(HexImpulseRequest request)
-        {
-            if (impulseProfile == null || impulseProfile.Count == 0)
-                return;
-
-            List<List<int>> targetsPerRing = new List<List<int>>(impulseProfile.Count);
-            float availableWeight = 0f;
-
-            for (int ringIndex = 0; ringIndex < impulseProfile.Count; ringIndex++)
-            {
-                HexImpulseRing ring = impulseProfile[ringIndex];
-                List<int> targets = new List<int>();
-
-                if (ring.ImpulseWeight > 0f)
-                {
-                    for (int cellIndex = 0; cellIndex < cells.Length; cellIndex++)
-                    {
-                        if (fixedBoundary[cellIndex])
-                            continue;
-
-                        if (cells[cellIndex].Coordinate.DistanceTo(request.Center) == ring.Distance)
-                            targets.Add(cellIndex);
-                    }
-                }
-
-                targetsPerRing.Add(targets);
-                if (targets.Count > 0)
-                    availableWeight += ring.ImpulseWeight;
-            }
-
-            if (availableWeight <= Mathf.Epsilon)
-                return;
-
-            var hits = new List<HexSpellImpulse>();
-            for (int ringIndex = 0; ringIndex < impulseProfile.Count; ringIndex++)
-            {
-                List<int> targets = targetsPerRing[ringIndex];
-                if (targets.Count == 0)
-                    continue;
-
-                float normalizedWeight = impulseProfile[ringIndex].ImpulseWeight / availableWeight;
-                float impulsePerCell = request.TotalImpulse * normalizedWeight / targets.Count;
-                for (int targetIndex = 0; targetIndex < targets.Count; targetIndex++)
-                {
-                    int cellIndex = targets[targetIndex];
-                    hits.Add(new HexSpellImpulse(cells[cellIndex].Coordinate, 0, impulsePerCell));
-                }
-            }
-            // Legacy impulses share the same map-wall response solver as skills.
-            var input = ScriptableObject.CreateInstance<HexSpellProperty>();
-            input.edgeMode = HexSpellEdgeMode.Fixed; input.impulses = hits;
-            foreach (var cell in cells) if (IsMovable(cell.Coordinate)) input.region.Add(cell.Coordinate);
-            var layer = new HexSpellWave(input, HexCoordinate.Origin, 0, 1, SimulationSettings, IsMovable, GetWallSource, simulationClock);
-            if (!layer.IsFinished) spellWaves.Add(layer);
-            if (Application.isPlaying) Destroy(input); else DestroyImmediate(input);
-        }
-
-        private void SimulateSubstep(float deltaTime)
-        {
-            for (int i = 0; i < cells.Length; i++)
-            {
-                forces[i] = fixedBoundary[i]
-                    ? 0f
-                    : -kOrigin * heights[i] - cOrigin * velocities[i];
-            }
-
-            for (int edgeIndex = 0; edgeIndex < edges.Count; edgeIndex++)
-            {
-                Edge edge = edges[edgeIndex];
-                int first = edge.First;
-                int second = edge.Second;
-                float edgeForce =
-                    kNeighbor * (heights[second] - heights[first]) +
-                    cNeighbor * (velocities[second] - velocities[first]);
-
-                if (!fixedBoundary[first])
-                    forces[first] += edgeForce;
-                if (!fixedBoundary[second])
-                    forces[second] -= edgeForce;
-            }
-
-            for (int i = 0; i < cells.Length; i++)
-            {
-                if (fixedBoundary[i])
-                {
-                    nextHeights[i] = 0f;
-                    nextVelocities[i] = 0f;
-                    continue;
-                }
-
-                float acceleration = forces[i] / mass;
-                nextVelocities[i] = velocities[i] + acceleration * deltaTime;
-                nextHeights[i] = heights[i] + nextVelocities[i] * deltaTime;
-            }
-
-            UpdateSleepStates();
-            Swap(ref heights, ref nextHeights);
-            Swap(ref velocities, ref nextVelocities);
-        }
-
-        private void UpdateSleepStates()
-        {
-            for (int i = 0; i < cells.Length; i++)
-            {
-                if (fixedBoundary[i])
-                {
-                    sleeping[i] = true;
-                    quietStepCounts[i] = sleepSteps;
-                    continue;
-                }
-
-                bool quiet =
-                    Mathf.Abs(nextHeights[i]) <= sleepHeightThreshold &&
-                    Mathf.Abs(nextVelocities[i]) <= sleepVelocityThreshold;
-
-                if (quiet)
-                {
-                    for (int direction = 0; direction < 6; direction++)
-                    {
-                        int neighborIndex = neighbors[i, direction];
-                        if (neighborIndex < 0)
-                            continue;
-
-                        if (Mathf.Abs(nextHeights[neighborIndex] - nextHeights[i]) > sleepHeightThreshold ||
-                            Mathf.Abs(nextVelocities[neighborIndex] - nextVelocities[i]) > sleepVelocityThreshold)
-                        {
-                            quiet = false;
-                            break;
-                        }
-                    }
-                }
-
-                if (!quiet)
-                {
-                    quietStepCounts[i] = 0;
-                    sleeping[i] = false;
-                    continue;
-                }
-
-                quietStepCounts[i]++;
-                if (quietStepCounts[i] < sleepSteps)
-                    continue;
-
-                nextHeights[i] = 0f;
-                nextVelocities[i] = 0f;
-                sleeping[i] = true;
-            }
-        }
-
-        private static void Swap<T>(ref T left, ref T right)
-        {
-            (left, right) = (right, left);
-        }
-
+        { float energy = 0; if (world != null) foreach (var cast in world.Casts) energy += cast.MechanicalEnergy; return energy; }
         private void OnDrawGizmosSelected()
         {
-            if (!drawBoundaryGizmos || cells == null)
-                return;
-
-            Gizmos.color = new Color(1f, 0.25f, 0.1f, 0.75f);
-            for (int i = 0; i < cells.Length && i < fixedBoundary.Length; i++)
-            {
-                if (fixedBoundary[i] && cells[i] != null)
-                    Gizmos.DrawWireSphere(cells[i].transform.position + transform.up * 0.1f, spacing * 0.12f);
-            }
+            if (!drawBoundaryGizmos) return; Gizmos.color = new Color(1, 0.25f, 0.1f, 0.75f);
+            for (int i = 0; i < cells.Length; i++) if (fixedBoundary[i] && cells[i] != null)
+                Gizmos.DrawWireSphere(cells[i].transform.position + transform.up * 0.1f, spacing * 0.12f);
         }
     }
 }

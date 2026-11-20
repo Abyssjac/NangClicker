@@ -21,41 +21,8 @@ MonoBehaviour:
   edgeMode: 0
   edgeDamping: 5
   absorptionWidth: 2
-  amplification:
-    gain: 1.35
-    triggerThreshold: 0.025
-    triggerCooldown: 0.16
-    activeDuration: 2.5
-    energyBudget: 20
-    maxTriggers: 24
-    fallbackMode: 0
   chargeDuration: 0.5
-  holdDuration: 0.05
-  heightFromImpulse:
-    serializedVersion: 2
-    m_Curve:
-    - serializedVersion: 3
-      time: 0
-      value: 0
-      inSlope: 0
-      outSlope: 0.1
-      tangentMode: 0
-      weightedMode: 0
-      inWeight: 0
-      outWeight: 0
-    - serializedVersion: 3
-      time: 10
-      value: 1
-      inSlope: 0.1
-      outSlope: 0
-      tangentMode: 0
-      weightedMode: 0
-      inWeight: 0
-      outWeight: 0
-    m_PreInfinity: 2
-    m_PostInfinity: 2
-    m_RotationOrder: 4
-  boundaryEdges: []
+  wallDuration: 2.5
   region:
   - a: -1
     b: 0
@@ -119,44 +86,40 @@ MonoBehaviour:
       a: 0
       b: 0
       c: 0
-    time: 0
+    releaseDelay: 0.05
     impulse: 0
     mode: 1
     targetHeight: 0.7
-    heightFromStrength: 0
   - offset:
       a: 1
       b: 0
       c: -1
-    time: 0.18
+    releaseDelay: 0.23
     impulse: 0
     mode: 1
     targetHeight: 0.82
-    heightFromStrength: 0
   - offset:
       a: 2
       b: 0
       c: -2
-    time: 0.36
+    releaseDelay: 0.41
     impulse: 0
     mode: 1
     targetHeight: 0.94
-    heightFromStrength: 0
   - offset:
       a: 3
       b: 0
       c: -3
-    time: 0.54
+    releaseDelay: 0.59
     impulse: 0
     mode: 1
     targetHeight: 1.06
-    heightFromStrength: 0
   - offset:
       a: 4
       b: 0
       c: -4
-    time: 0.72
+    releaseDelay: 0.77
     impulse: 0
     mode: 1
     targetHeight: 1.18
-    heightFromStrength: 0
+  walls: []
