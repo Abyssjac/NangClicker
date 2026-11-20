@@ -1,6 +1,6 @@
 {
   "dependencies": {
-    "com.abyss.packages": "file:E:/Git docs/AbyssToolKitUnity",
+    "com.abyss.packages": "https://github.com/Abyssjac/AbyssToolKitUnity.git#1.0.0",
     "com.coplaydev.unity-mcp": "https://github.com/CoplayDev/unity-mcp.git?path=/MCPForUnity#main",
     "com.unity.ai.navigation": "2.0.12",
     "com.unity.collab-proxy": "2.12.4",

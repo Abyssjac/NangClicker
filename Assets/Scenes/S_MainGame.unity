@@ -22324,7 +22324,7 @@ MonoBehaviour:
   waveManager: {fileID: 1057721095}
   inputCamera: {fileID: 1952759176}
   preview: {fileID: 1057721101}
-  slots: 010000000300000006000000
+  slots: 01000000030000000600000004000000
   selectedSlot: 0
   direction: 0
   strengthMultiplier: 1

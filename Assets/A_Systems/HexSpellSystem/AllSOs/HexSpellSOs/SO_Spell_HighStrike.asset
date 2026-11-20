@@ -24,30 +24,18 @@ MonoBehaviour:
   edgeDamping: 5
   absorptionWidth: 2
   region:
+  - a: 0
+    b: 0
+    c: 0
   - a: 1
     b: 0
     c: -1
   - a: 0
     b: 1
     c: -1
-  - a: -1
-    b: 1
-    c: 0
-  - a: -1
-    b: 0
-    c: 1
-  - a: 0
-    b: -1
-    c: 1
   - a: 1
     b: -1
     c: 0
-  - a: 0
-    b: 0
-    c: 0
-  - a: 0
-    b: 2
-    c: -2
   - a: 1
     b: 1
     c: -2
@@ -57,63 +45,12 @@ MonoBehaviour:
   - a: 2
     b: -1
     c: -1
-  - a: 2
-    b: -2
-    c: 0
   - a: 1
-    b: -2
-    c: 1
-  - a: -1
-    b: -1
-    c: 2
-  - a: -2
-    b: 0
-    c: 2
-  - a: -2
-    b: 1
-    c: 1
-  - a: -2
     b: 2
-    c: 0
-  - a: -1
-    b: 2
-    c: -1
-  - a: -1
-    b: 3
-    c: -2
-  - a: -2
-    b: 3
-    c: -1
-  - a: -3
-    b: 3
-    c: 0
-  - a: -3
-    b: 2
-    c: 1
-  - a: -3
-    b: 1
-    c: 2
-  - a: -3
-    b: 0
-    c: 3
-  - a: -2
-    b: -1
-    c: 3
-  - a: -1
-    b: -2
-    c: 3
-  - a: 0
-    b: -3
-    c: 3
-  - a: 0
-    b: -2
-    c: 2
-  - a: 1
-    b: -3
-    c: 2
+    c: -3
   - a: 2
-    b: -3
-    c: 1
+    b: 1
+    c: -3
   - a: 3
     b: 0
     c: -3
@@ -123,193 +60,74 @@ MonoBehaviour:
   - a: 3
     b: -2
     c: -1
-  - a: 3
-    b: -3
-    c: 0
   - a: 1
-    b: 2
-    c: -3
-  - a: 2
-    b: 1
-    c: -3
-  - a: 0
     b: 3
+    c: -4
+  - a: 2
+    b: 2
+    c: -4
+  - a: 3
+    b: 1
+    c: -4
+  - a: 4
+    b: 0
+    c: -4
+  - a: 4
+    b: -1
     c: -3
+  - a: 4
+    b: -2
+    c: -2
+  - a: 4
+    b: -3
+    c: -1
   impulses:
   - offset:
       a: 0
       b: 0
       c: 0
     releaseDelay: 0
-    impulse: 8
+    impulse: 16
     mode: 1
-    targetHeight: -1
+    targetHeight: 2
   - offset:
       a: 0
       b: 1
       c: -1
     releaseDelay: 0
     impulse: 8
-    mode: 1
-    targetHeight: -0.7
-  - offset:
-      a: -1
-      b: 1
-      c: 0
-    releaseDelay: 0
-    impulse: 8
-    mode: 1
-    targetHeight: -0.7
+    mode: 0
+    targetHeight: 0
   - offset:
       a: 1
       b: 0
       c: -1
     releaseDelay: 0
     impulse: 8
-    mode: 1
-    targetHeight: -0.7
+    mode: 0
+    targetHeight: 0
   - offset:
       a: 1
       b: -1
       c: 0
     releaseDelay: 0
     impulse: 8
-    mode: 1
-    targetHeight: -0.7
-  - offset:
-      a: 0
-      b: -1
-      c: 1
-    releaseDelay: 0
-    impulse: 8
-    mode: 1
-    targetHeight: -0.7
-  - offset:
-      a: -1
-      b: 0
-      c: 1
-    releaseDelay: 0
-    impulse: 8
-    mode: 1
-    targetHeight: -0.7
-  walls:
-  - offset:
-      a: -1
-      b: 4
-      c: -3
-    response: 3
-  - offset:
-      a: -2
-      b: 4
-      c: -2
-    response: 3
-  - offset:
-      a: -3
-      b: 4
-      c: -1
-    response: 3
-  - offset:
-      a: -4
-      b: 3
-      c: 1
-    response: 3
-  - offset:
-      a: -4
-      b: 2
-      c: 2
-    response: 3
-  - offset:
-      a: -4
-      b: 4
-      c: 0
-    response: 3
-  - offset:
-      a: -4
-      b: 1
-      c: 3
-    response: 3
-  - offset:
-      a: -4
-      b: 0
-      c: 4
-    response: 3
-  - offset:
-      a: -3
-      b: -1
-      c: 4
-    response: 3
-  - offset:
-      a: -2
-      b: -2
-      c: 4
-    response: 3
-  - offset:
-      a: -1
-      b: -3
-      c: 4
-    response: 3
-  - offset:
-      a: 0
-      b: -4
-      c: 4
-    response: 3
-  - offset:
-      a: 1
-      b: -4
-      c: 3
-    response: 3
+    mode: 0
+    targetHeight: 0
   - offset:
       a: 2
-      b: -4
-      c: 2
-    response: 3
-  - offset:
-      a: 3
-      b: -4
-      c: 1
-    response: 3
-  - offset:
-      a: 4
-      b: -4
-      c: 0
-    response: 3
-  - offset:
-      a: 4
-      b: -3
-      c: -1
-    response: 3
-  - offset:
-      a: 4
-      b: -2
-      c: -2
-    response: 3
-  - offset:
-      a: 4
-      b: -1
-      c: -3
-    response: 3
-  - offset:
-      a: 4
-      b: 0
-      c: -4
-    response: 3
-  - offset:
-      a: 3
       b: 1
-      c: -4
-    response: 3
+      c: -3
+    releaseDelay: 2
+    impulse: 8
+    mode: 0
+    targetHeight: 0
   - offset:
-      a: 2
-      b: 2
-      c: -4
-    response: 3
-  - offset:
-      a: 1
-      b: 3
-      c: -4
-    response: 3
-  - offset:
-      a: 0
-      b: 4
-      c: -4
-    response: 3
+      a: 3
+      b: -1
+      c: -2
+    releaseDelay: 2
+    impulse: 8
+    mode: 0
+    targetHeight: 0
+  walls: []
