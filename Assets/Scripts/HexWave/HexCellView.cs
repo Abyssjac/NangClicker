@@ -9,6 +9,8 @@ namespace NangClicker.HexWave
         [SerializeField] private Renderer targetRenderer;
         [Tooltip("An authored map wall. Separate from automatic outer boundaries and spell masks.")]
         [SerializeField] private bool isWall;
+        [SerializeField] private bool useWallResponse;
+        [SerializeField] private HexBoundarySettings wallResponse = HexBoundarySettings.Fixed;
         [SerializeField, HideInInspector] private Vector3 baseLocalPosition;
         [SerializeField, HideInInspector] private bool fixedBoundary;
 
@@ -18,6 +20,9 @@ namespace NangClicker.HexWave
         public bool IsFixedBoundary => fixedBoundary;
         public bool IsWall => isWall;
         public void SetWall(bool value) { isWall = value; }
+        public HexBoundarySettings WallResponse => useWallResponse && wallResponse.IsValid ? wallResponse : HexBoundarySettings.Fixed;
+        public void SetWallResponse(HexBoundarySettings response)
+        { isWall = true; useWallResponse = true; wallResponse = response; }
         public int RuntimeIndex { get; private set; } = -1;
 
         private void Reset()

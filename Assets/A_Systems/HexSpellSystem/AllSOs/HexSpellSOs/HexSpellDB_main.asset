@@ -15,4 +15,11 @@ MonoBehaviour:
   entries:
   - {fileID: 11400000, guid: 4dc1a8e8d73e7334f9a24ebd02e0dee8, type: 2}
   - {fileID: 11400000, guid: 66df71bc37adbae43b45dd8005bb9f53, type: 2}
+  - {fileID: 11400000, guid: 7847c8c7ee40fa84f857e02da8d36020, type: 2}
+  - {fileID: 11400000, guid: 6cf8fe91ae594394e853eb34b0464cd2, type: 2}
+  - {fileID: 11400000, guid: cc6493ee6abe87d49bc8a3163cb31f0e, type: 2}
+  - {fileID: 11400000, guid: 0ecc58d61eb92324d9fff61dfd7c657b, type: 2}
+  - {fileID: 11400000, guid: 29894f4355e780b469f2f4f0fd737456, type: 2}
+  - {fileID: 11400000, guid: 0a2bcd28110bc1f44a0bfb043c7762bf, type: 2}
+  - {fileID: 11400000, guid: 658ded7ef2104f74180342704043efec, type: 2}
   scanFolder: A_Systems/HexSpellSystem/AllSOs/HexSpellSOs

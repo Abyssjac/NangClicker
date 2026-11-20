@@ -22353,7 +22353,7 @@ MonoBehaviour:
   waveManager: {fileID: 1057721095}
   inputCamera: {fileID: 1952759176}
   preview: {fileID: 1057721101}
-  slots: 0100000002000000
+  slots: 010000000300000006000000
   selectedSlot: 0
   direction: 0
   strengthMultiplier: 1
@@ -33736,11 +33736,24 @@ PrefabInstance:
     - target: {fileID: 387651210900453539, guid: 045d94b652ac71d4f9814ed5218eab0d, type: 3}
       propertyPath: m_text
       value: "OBJECTIVE\n\nStop enemies from reaching the center.\n\nSelect a spell
-        below, rotate its direction, then click a floor hex to cast.\nMoving hexes
-        damage enemies standing on them.\n\nEnemies reaching the center damage your
-        Base.\nBase HP 0 means defeat.\n\nCONTROLS\n\nLeft Click \u2014 Cast selected
-        spell\nMiddle Mouse Drag \u2014 Move Camera\nMouse Wheel \u2014 Zoom\nI \u2014
-        Toggle Guide\nAlt+R \u2014 Restart Game"
+        with 1 / 2 / 3. Press R to rotate, then click a floor hex to cast.\nMoving
+        hexes damage enemies standing on them.\n\nEnemies reaching the center damage
+        your Base.\nBase HP 0 means defeat.\n\nCONTROLS\n\nLeft Click \u2014 Cast
+        selected spell\n1 / 2 / 3 \u2014 Select spell\nR \u2014 Rotate 60 degrees\nMiddle
+        Mouse Drag \u2014 Move Camera\nMouse Wheel \u2014 Zoom\nI \u2014 Toggle Guide\nAlt+R
+        \u2014 Restart Game"
+      objectReference: {fileID: 0}
+    - target: {fileID: 387651210900453539, guid: 045d94b652ac71d4f9814ed5218eab0d, type: 3}
+      propertyPath: m_fontSizeMax
+      value: 25
+      objectReference: {fileID: 0}
+    - target: {fileID: 387651210900453539, guid: 045d94b652ac71d4f9814ed5218eab0d, type: 3}
+      propertyPath: m_fontSizeMin
+      value: 20
+      objectReference: {fileID: 0}
+    - target: {fileID: 387651210900453539, guid: 045d94b652ac71d4f9814ed5218eab0d, type: 3}
+      propertyPath: m_enableAutoSizing
+      value: 1
       objectReference: {fileID: 0}
     - target: {fileID: 387651210900453539, guid: 045d94b652ac71d4f9814ed5218eab0d, type: 3}
       propertyPath: m_TextStyleHashCode
@@ -33752,7 +33765,7 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 4524634480845337523, guid: 045d94b652ac71d4f9814ed5218eab0d, type: 3}
       propertyPath: m_SizeDelta.y
-      value: 540
+      value: 680
       objectReference: {fileID: 0}
     - target: {fileID: 5260220467005264670, guid: 045d94b652ac71d4f9814ed5218eab0d, type: 3}
       propertyPath: m_Pivot.x

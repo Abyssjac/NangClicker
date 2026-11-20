@@ -70,6 +70,26 @@ namespace NangClicker.HexWave
         private readonly List<HexSpellWave> spellWaves = new List<HexSpellWave>();
         private float[] spellHeights = Array.Empty<float>();
         private float[] spellVelocities = Array.Empty<float>();
+        private double simulationClock;
+        private readonly Dictionary<HexCoordinate, HexBoundarySource> wallSources = new Dictionary<HexCoordinate, HexBoundarySource>();
+        public HexBoundarySource GetWallSource(HexCoordinate coordinate)
+        {
+            if (!wallSources.TryGetValue(coordinate, out var source))
+            {
+                var response = TryGetCell(coordinate, out var cell) && cell.IsWall ? cell.WallResponse : HexBoundarySettings.Fixed;
+                source = new HexBoundarySource(response, simulationClock, true); wallSources.Add(coordinate, source);
+            }
+            return source;
+        }
+        public void RearmWall(HexCoordinate coordinate) { GetWallSource(coordinate).Rearm(simulationClock); }
+        public HexSpellEdgeMode GetWallResponseMode(HexCoordinate coordinate) => wallSources.TryGetValue(coordinate, out var source)
+            ? source.ModeAt(simulationClock) : TryGetCell(coordinate, out var cell) && cell.IsWall ? cell.WallResponse.mode : HexSpellEdgeMode.Fixed;
+        public HexMotionControl GetMotionControl(HexCoordinate coordinate)
+        {
+            var state = HexMotionControl.Free;
+            foreach (var wave in spellWaves) state = (HexMotionControl)Mathf.Max((int)state, (int)wave.GetControl(coordinate));
+            return state;
+        }
         public int ActiveWaveCount => spellWaves.Count;
         public int PendingCastCount
         {
@@ -128,6 +148,7 @@ namespace NangClicker.HexWave
                     { spellHeights[i] += wave.GetHeight(j); spellVelocities[i] += wave.GetVelocity(j); }
                 if (wave.IsFinished) spellWaves.RemoveAt(w);
             }
+            simulationClock += deltaTime;
         }
 
         public bool IsMovable(HexCoordinate coordinate) =>
@@ -138,7 +159,8 @@ namespace NangClicker.HexWave
             if (!initialized && !RebuildGrid()) return false;
             if (spell == null || !spell.Validate(out _) || !IsMovable(origin) ||
                 float.IsNaN(multiplier) || float.IsInfinity(multiplier)) return false;
-            var wave = new HexSpellWave(spell, origin, direction, multiplier, SimulationSettings, IsMovable);
+            if (float.IsInfinity(spell.strength * multiplier) || float.IsNaN(spell.strength * multiplier)) return false;
+            var wave = new HexSpellWave(spell, origin, direction, multiplier, SimulationSettings, IsMovable, GetWallSource, simulationClock);
             if (wave.IsFinished) return false;
             spellWaves.Add(wave);
             return true;
@@ -213,6 +235,7 @@ namespace NangClicker.HexWave
             spellHeights = new float[count];
             spellVelocities = new float[count];
             spellWaves.Clear();
+            wallSources.Clear(); simulationClock = 0;
 
             for (int i = 0; i < count; i++)
             {
@@ -253,6 +276,7 @@ namespace NangClicker.HexWave
             if (!initialized)
                 return;
             spellWaves.Clear();
+            wallSources.Clear(); simulationClock = 0;
             Array.Clear(spellHeights, 0, spellHeights.Length);
             Array.Clear(spellVelocities, 0, spellVelocities.Length);
 
@@ -405,6 +429,7 @@ namespace NangClicker.HexWave
             if (availableWeight <= Mathf.Epsilon)
                 return;
 
+            var hits = new List<HexSpellImpulse>();
             for (int ringIndex = 0; ringIndex < impulseProfile.Count; ringIndex++)
             {
                 List<int> targets = targetsPerRing[ringIndex];
@@ -413,16 +438,19 @@ namespace NangClicker.HexWave
 
                 float normalizedWeight = impulseProfile[ringIndex].ImpulseWeight / availableWeight;
                 float impulsePerCell = request.TotalImpulse * normalizedWeight / targets.Count;
-                float velocityChange = impulsePerCell / mass;
-
                 for (int targetIndex = 0; targetIndex < targets.Count; targetIndex++)
                 {
                     int cellIndex = targets[targetIndex];
-                    velocities[cellIndex] += velocityChange;
-                    sleeping[cellIndex] = false;
-                    quietStepCounts[cellIndex] = 0;
+                    hits.Add(new HexSpellImpulse(cells[cellIndex].Coordinate, 0, impulsePerCell));
                 }
             }
+            // Legacy impulses share the same map-wall response solver as skills.
+            var input = ScriptableObject.CreateInstance<HexSpellProperty>();
+            input.edgeMode = HexSpellEdgeMode.Fixed; input.impulses = hits;
+            foreach (var cell in cells) if (IsMovable(cell.Coordinate)) input.region.Add(cell.Coordinate);
+            var layer = new HexSpellWave(input, HexCoordinate.Origin, 0, 1, SimulationSettings, IsMovable, GetWallSource, simulationClock);
+            if (!layer.IsFinished) spellWaves.Add(layer);
+            if (Application.isPlaying) Destroy(input); else DestroyImmediate(input);
         }
 
         private void SimulateSubstep(float deltaTime)

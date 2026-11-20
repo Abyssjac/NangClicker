@@ -5,85 +5,80 @@ using UnityEngine.UI;
 
 namespace NangClicker.HexWave
 {
+    /// <summary>Flat skill-bar presentation. Equipment and selection belong to SpellManager.</summary>
     [DisallowMultipleComponent]
     public sealed class HexSpellTestUI : MonoBehaviour
     {
         [SerializeField] private SpellManager manager;
         private RectTransform panel;
-        private TMP_Text status;
-        private TMP_Text[] captions;
-        private Image[] backgrounds;
+        private TMP_Text heading;
+        private Image[] frames, icons, accents;
+        private Button[] buttons;
         private static HexSpellTestUI active;
         public static bool IsPointerOverPanel(Vector2 screenPoint) => active != null && active.panel != null &&
             RectTransformUtility.RectangleContainsScreenPoint(active.panel, screenPoint);
-
         private void Start()
         {
             active = this;
             if (manager == null) manager = GetComponent<SpellManager>();
             if (manager == null) return;
-            var canvasObject = new GameObject("Spell Test Canvas", typeof(RectTransform), typeof(Canvas),
-                typeof(CanvasScaler), typeof(GraphicRaycaster));
-            canvasObject.transform.SetParent(transform, false);
-            var canvas = canvasObject.GetComponent<Canvas>();
-            canvas.renderMode = RenderMode.ScreenSpaceOverlay; canvas.sortingOrder = 90;
-            var scaler = canvasObject.GetComponent<CanvasScaler>();
+            var root = new GameObject("Spell Bar Canvas", typeof(RectTransform), typeof(Canvas), typeof(CanvasScaler), typeof(GraphicRaycaster));
+            root.transform.SetParent(transform, false);
+            root.GetComponent<Canvas>().renderMode = RenderMode.ScreenSpaceOverlay; root.GetComponent<Canvas>().sortingOrder = 90;
+            var scaler = root.GetComponent<CanvasScaler>();
             scaler.uiScaleMode = CanvasScaler.ScaleMode.ScaleWithScreenSize;
             scaler.referenceResolution = new Vector2(1920, 1080); scaler.matchWidthOrHeight = 0.5f;
-            panel = MakeRect("Spell Slots", canvasObject.transform, new Vector2(0.5f, 0f), new Vector2(900, 136), new Vector2(0, 18));
-            panel.gameObject.AddComponent<Image>().color = new Color(0.025f, 0.04f, 0.07f, 0.94f);
-            captions = new TMP_Text[manager.Slots.Length]; backgrounds = new Image[captions.Length];
-            float width = Mathf.Min(230f, 600f / Mathf.Max(1, captions.Length));
-            for (int i = 0; i < captions.Length; i++)
+            int count = manager.Slots.Length;
+            panel = MakeRect("Spell Slots", root.transform, new Vector2(0.5f, 0), new Vector2(Mathf.Max(420, count * 134 + 36), 178), new Vector2(0, 16));
+            panel.gameObject.AddComponent<Image>().color = new Color(0.035f, 0.045f, 0.06f, 0.9f);
+            frames = new Image[count]; icons = new Image[count]; accents = new Image[count]; buttons = new Button[count];
+            for (int i = 0; i < count; i++)
             {
                 int index = i;
-                Button button = MakeButton("Spell " + i, panel, new Vector2(-310 + i * width, 25), new Vector2(width - 12, 66), out captions[i]);
-                backgrounds[i] = button.image;
-                button.onClick.AddListener(() => manager.SelectSlot(index));
+                var slot = MakeRect("Slot " + (i + 1), panel, new Vector2(0.5f, 0), new Vector2(116, 116), new Vector2((i - (count - 1) * 0.5f) * 134, 45));
+                frames[i] = slot.gameObject.AddComponent<Image>();
+                buttons[i] = slot.gameObject.AddComponent<Button>(); buttons[i].targetGraphic = frames[i];
+                buttons[i].transition = Selectable.Transition.None; buttons[i].onClick.AddListener(() => manager.SelectSlot(index));
+                var inside = MakeRect("Face", slot, new Vector2(0.5f, 0), new Vector2(106, 106), new Vector2(0, 5));
+                inside.gameObject.AddComponent<Image>().color = new Color(0.065f, 0.085f, 0.10f);
+                var icon = MakeRect("Icon", slot, new Vector2(0.5f, 0), new Vector2(80, 80), new Vector2(0, 24));
+                icons[i] = icon.gameObject.AddComponent<Image>(); icons[i].preserveAspect = true; icons[i].raycastTarget = false;
+                var number = MakeRect("Hotkey", slot, new Vector2(0, 0), new Vector2(28, 26), new Vector2(22, 10));
+                var text = number.gameObject.AddComponent<TextMeshProUGUI>(); Style(text, 21); text.text = (i + 1).ToString();
+                var accent = MakeRect("Selected Mark", slot, new Vector2(0.5f, 0), new Vector2(46, 5), new Vector2(0, 7));
+                accents[i] = accent.gameObject.AddComponent<Image>(); accents[i].raycastTarget = false;
             }
-            Button rotate = MakeButton("Rotate 60", panel, new Vector2(315, 25), new Vector2(230, 66), out var rotateText);
-            rotateText.text = "Rotate 60°";
-            rotate.onClick.AddListener(manager.RotateDirection);
-            var statusRect = MakeRect("Status", panel, new Vector2(0.5f, 0f), new Vector2(860, 32), new Vector2(0, 8));
-            status = statusRect.gameObject.AddComponent<TextMeshProUGUI>();
-            Style(status, 20); status.raycastTarget = false;
+            var status = MakeRect("Heading", panel, new Vector2(0.5f, 0), new Vector2(panel.sizeDelta.x - 20, 30), new Vector2(0, 6));
+            heading = status.gameObject.AddComponent<TextMeshProUGUI>(); Style(heading, 20);
             if (EventSystem.current == null)
             {
                 var events = new GameObject("Spell UI EventSystem", typeof(EventSystem), typeof(StandaloneInputModule));
                 events.transform.SetParent(transform, false);
             }
         }
-
         private void Update()
         {
-            if (manager == null || captions == null) return;
-            for (int i = 0; i < captions.Length; i++)
+            if (frames == null || manager == null) return;
+            for (int i = 0; i < frames.Length; i++)
             {
-                var spell = manager.GetSpell(i);
-                captions[i].text = spell != null ? spell.displayName : manager.Slots[i].ToString();
-                backgrounds[i].color = i == manager.SelectedSlot ? new Color(0.12f, 0.42f, 0.65f) : new Color(0.12f, 0.17f, 0.23f);
+                var spell = manager.GetSpell(i); bool selected = i == manager.SelectedSlot;
+                Color tint = selected ? new Color(0.4f, 0.95f, 0.82f) : new Color(0.29f, 0.34f, 0.37f);
+                frames[i].color = spell == null ? new Color(0.12f, 0.14f, 0.16f) : tint;
+                icons[i].sprite = spell != null ? spell.icon : null; icons[i].enabled = icons[i].sprite != null;
+                icons[i].color = selected ? Color.white : new Color(0.6f, 0.66f, 0.69f);
+                accents[i].color = selected ? tint : Color.clear;
+                buttons[i].interactable = spell != null && Time.timeScale > 0;
             }
-            var forward = HexCoordinate.GetNeighborDirection(1).Rotate(manager.Direction);
-            status.text = $"Direction {manager.Direction + 1}/6  {forward}     Click a floor hex to cast     Pending casts: {manager.WaveManager.PendingCastCount}  Waves: {manager.WaveManager.ActiveWaveCount}";
+            heading.text = $"1 / 2 / 3  Select       R  Rotate   {manager.Direction + 1}/6";
         }
-
         private void OnDestroy() { if (active == this) active = null; }
-
         private static RectTransform MakeRect(string name, Transform parent, Vector2 anchor, Vector2 size, Vector2 position)
         {
             var obj = new GameObject(name, typeof(RectTransform)); obj.transform.SetParent(parent, false);
             var rect = (RectTransform)obj.transform; rect.anchorMin = rect.anchorMax = anchor;
-            rect.pivot = new Vector2(0.5f, 0f); rect.sizeDelta = size; rect.anchoredPosition = position; return rect;
-        }
-        private static Button MakeButton(string name, Transform parent, Vector2 position, Vector2 size, out TMP_Text text)
-        {
-            var rect = MakeRect(name, parent, new Vector2(0.5f, 0.5f), size, position - new Vector2(0, 32));
-            var image = rect.gameObject.AddComponent<Image>(); image.color = new Color(0.12f, 0.17f, 0.23f);
-            var button = rect.gameObject.AddComponent<Button>(); button.targetGraphic = image;
-            var label = MakeRect("Label", rect, new Vector2(0.5f, 0f), size, Vector2.zero);
-            text = label.gameObject.AddComponent<TextMeshProUGUI>(); Style(text, 25); text.raycastTarget = false; return button;
+            rect.pivot = new Vector2(0.5f, 0); rect.sizeDelta = size; rect.anchoredPosition = position; return rect;
         }
         private static void Style(TMP_Text text, float size)
-        { text.font = TMP_Settings.defaultFontAsset; text.fontSize = size; text.alignment = TextAlignmentOptions.Center; text.color = Color.white; }
+        { text.font = TMP_Settings.defaultFontAsset; text.fontSize = size; text.alignment = TextAlignmentOptions.Center; text.color = Color.white; text.raycastTarget = false; }
     }
 }

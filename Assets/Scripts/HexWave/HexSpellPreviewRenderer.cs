@@ -44,12 +44,17 @@ namespace NangClicker.HexWave
                 marker.root.transform.rotation = map.CellsRoot.rotation;
                 marker.root.transform.localScale = Vector3.one * map.Spacing;
                 bool valid = validOrigin && map.IsMovable(coordinate);
-                float total = 0f; int hits = 0; float firstTime = float.MaxValue;
+                float total = 0f, totalLift = 0f; int hits = 0; float firstTime = float.MaxValue;
+                bool hasLift = false, hasImpulse = false;
                 foreach (var hit in spell.impulses)
                     if (origin + hit.offset.Rotate(direction) == coordinate)
-                    { total += hit.impulse * spell.strength * multiplier; hits++; firstTime = Mathf.Min(firstTime, hit.time); }
+                    {
+                        if (hit.mode == HexSpellEventMode.Impulse) { total += hit.impulse * spell.strength * multiplier; hasImpulse = true; }
+                        else { totalLift += spell.LiftHeight(hit, multiplier); hasLift = true; }
+                        hits++; firstTime = Mathf.Min(firstTime, hit.time + (hit.mode == HexSpellEventMode.LiftAndRelease ? spell.chargeDuration + spell.holdDuration : 0));
+                    }
                 Color color = !valid ? new Color(0.45f, 0.48f, 0.52f, 0.3f) : hits == 0
-                    ? new Color(0.05f, 0.5f, 1f, 0.14f) : total >= 0f
+                    ? new Color(0.05f, 0.5f, 1f, 0.14f) : (hasLift ? totalLift : total) >= 0f
                     ? new Color(1f, 0.08f, 0.04f, 0.82f) : new Color(0.75f, 0.18f, 1f, 0.82f);
                 properties.SetColor("_BaseColor", color); properties.SetColor("_Color", color); marker.fill.SetPropertyBlock(properties);
                 for (int d = 0; d < 6; d++)
@@ -60,7 +65,12 @@ namespace NangClicker.HexWave
                     {
                         int corner = (7 - d) % 6;
                         marker.edges[d].SetPosition(0, Corner(corner)); marker.edges[d].SetPosition(1, Corner(corner + 1));
-                        marker.edges[d].startColor = marker.edges[d].endColor = valid ? new Color(0.1f, 0.65f, 1f) : Color.gray;
+                        var response = spell.Boundary;
+                        foreach (var edge in spell.boundaryEdges)
+                            if (origin + edge.offset.Rotate(direction) == coordinate && (edge.direction + direction) % 6 == d) response = edge.response;
+                        Color edgeColor = response.mode == HexSpellEdgeMode.Amplify ? new Color(1f, 0.55f, 0.08f) :
+                            response.mode == HexSpellEdgeMode.Fixed ? Color.white : response.mode == HexSpellEdgeMode.Free ? Color.green : new Color(0.1f, 0.65f, 1f);
+                        marker.edges[d].startColor = marker.edges[d].endColor = valid ? edgeColor : Color.gray;
                     }
                 }
                 // A complete thin hex outline keeps clipped/invalid cells legible too.
@@ -68,7 +78,8 @@ namespace NangClicker.HexWave
                 for (int c = 0; c <= 6; c++) marker.outline.SetPosition(c, Corner(c));
                 marker.outline.startColor = marker.outline.endColor = valid ? new Color(0.1f, 0.65f, 1f, 0.85f) : Color.gray;
                 marker.outline.widthMultiplier = 0.008f;
-                marker.label.text = !valid ? "×" : showEventLabels && hits > 0 ? $"{total:+0.##;-0.##;0}\n{firstTime:0.##}s" : "";
+                string valueLabel = hasLift ? (hasImpulse ? $"J {total:0.#}\nH {totalLift:0.#}" : $"H {totalLift:0.##}\n{firstTime:0.##}s") : $"{total:+0.##;-0.##;0}\n{firstTime:0.##}s";
+                marker.label.text = !valid ? "×" : showEventLabels && hits > 0 ? valueLabel : "";
                 marker.label.transform.rotation = Camera.main != null ? Camera.main.transform.rotation : Quaternion.identity;
                 float visualScale = 0.065f + Mathf.Min(0.02f, Mathf.Abs(total) * 0.002f);
                 marker.label.characterSize = visualScale;

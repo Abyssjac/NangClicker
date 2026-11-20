@@ -65,7 +65,7 @@ namespace NangClicker.HexWave
                 {
                     cell.ApplyHeight(0f);
                     int wallPropertyId = ResolveColorProperty(cell);
-                    cell.ApplyColor(propertyBlock, wallPropertyId, wallColor);
+                    cell.ApplyColor(propertyBlock, wallPropertyId, ResolveWallColor(cell));
                     continue;
                 }
 
@@ -109,7 +109,7 @@ namespace NangClicker.HexWave
                 if (cell == null)
                     continue;
 
-                Color color = manager.IsFixedBoundary(i) ? wallColor : restingColor;
+                Color color = manager.IsFixedBoundary(i) ? ResolveWallColor(cell) : restingColor;
                 cell.ApplyColor(propertyBlock, ResolveColorProperty(cell), color);
             }
         }
@@ -124,6 +124,13 @@ namespace NangClicker.HexWave
             }
 
             return fallbackColorPropertyId;
+        }
+
+        private Color ResolveWallColor(HexCellView cell)
+        {
+            var mode = manager.GetWallResponseMode(cell.Coordinate);
+            return mode == HexSpellEdgeMode.Amplify ? new Color(0.85f, 0.42f, 0.05f) :
+                mode == HexSpellEdgeMode.Absorb ? new Color(0.1f, 0.25f, 0.4f) : wallColor;
         }
 
         private void RefreshPropertyIds()

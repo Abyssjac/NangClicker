@@ -16,11 +16,46 @@ MonoBehaviour:
   stringKey: 
   displayName: Line Strike
   description: Four direct impulses; anchor is the leftmost red hex.
-  icon: {fileID: 0}
+  icon: {fileID: 21300000, guid: e6aa24423a9c62941a6a2903b6acb758, type: 3}
   strength: 1
   edgeMode: 0
   edgeDamping: 5
   absorptionWidth: 2
+  amplification:
+    gain: 1.35
+    triggerThreshold: 0.025
+    triggerCooldown: 0.16
+    activeDuration: 2.5
+    energyBudget: 20
+    maxTriggers: 24
+    fallbackMode: 0
+  chargeDuration: 0.6
+  holdDuration: 0
+  heightFromImpulse:
+    serializedVersion: 2
+    m_Curve:
+    - serializedVersion: 3
+      time: 0
+      value: 0
+      inSlope: 0
+      outSlope: 0.1
+      tangentMode: 0
+      weightedMode: 0
+      inWeight: 0
+      outWeight: 0
+    - serializedVersion: 3
+      time: 10
+      value: 1
+      inSlope: 0.1
+      outSlope: 0
+      tangentMode: 0
+      weightedMode: 0
+      inWeight: 0
+      outWeight: 0
+    m_PreInfinity: 2
+    m_PostInfinity: 2
+    m_RotationOrder: 4
+  boundaryEdges: []
   region:
   - a: -1
     b: 0
@@ -77,21 +112,33 @@ MonoBehaviour:
       c: 0
     time: 0
     impulse: 8
+    mode: 0
+    targetHeight: 0
+    heightFromStrength: 0
   - offset:
       a: 1
       b: 0
       c: -1
     time: 0
     impulse: 8
+    mode: 0
+    targetHeight: 0
+    heightFromStrength: 0
   - offset:
       a: 2
       b: 0
       c: -2
     time: 0
     impulse: 8
+    mode: 0
+    targetHeight: 0
+    heightFromStrength: 0
   - offset:
       a: 3
       b: 0
       c: -3
     time: 0
     impulse: 8
+    mode: 0
+    targetHeight: 0
+    heightFromStrength: 0

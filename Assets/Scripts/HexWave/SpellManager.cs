@@ -12,7 +12,7 @@ namespace NangClicker.HexWave
         [SerializeField] private HexWaveManager waveManager;
         [SerializeField] private Camera inputCamera;
         [SerializeField] private HexSpellPreviewRenderer preview;
-        [SerializeField] private Key_HexSpellPP[] slots = { Key_HexSpellPP.Line, Key_HexSpellPP.Triangle };
+        [SerializeField] private Key_HexSpellPP[] slots = { Key_HexSpellPP.Line, Key_HexSpellPP.ChargedTriangle, Key_HexSpellPP.ResonanceCage };
         [SerializeField] private int selectedSlot;
         [Range(0, 5)] [SerializeField] private int direction;
         [SerializeField] private float strengthMultiplier = 1f;
@@ -51,6 +51,14 @@ namespace NangClicker.HexWave
 
         private void Update()
         {
+            bool shortcutsLocked = inputCamera != null && inputCamera.TryGetComponent<CameraBase>(out var shortcutCamera) && shortcutCamera.IsInputLocked;
+            if (Time.timeScale > 0 && !EditingText() && !shortcutsLocked)
+            {
+                for (int i = 0; i < Mathf.Min(slots.Length, 9); i++)
+                    if (Input.GetKeyDown((KeyCode)((int)KeyCode.Alpha1 + i)) || Input.GetKeyDown((KeyCode)((int)KeyCode.Keypad1 + i))) SelectSlot(i);
+                if (Input.GetKeyDown(KeyCode.R) && !Input.GetKey(KeyCode.LeftAlt) && !Input.GetKey(KeyCode.RightAlt) &&
+                    !Input.GetKey(KeyCode.LeftControl) && !Input.GetKey(KeyCode.RightControl)) RotateDirection();
+            }
             var spell = SelectedSpell;
             if (spell == null && !warned && PropertyDatabaseManager.Instance != null)
             { Debug.LogError("[SpellManager] Selected spell is missing from the registered HexSpellDatabase.", this); warned = true; }
@@ -73,5 +81,10 @@ namespace NangClicker.HexWave
         }
 
         private void OnDisable() { if (preview != null) preview.Hide(); }
+        private static bool EditingText()
+        {
+            var selected = EventSystem.current != null ? EventSystem.current.currentSelectedGameObject : null;
+            return selected != null && (selected.GetComponent<UnityEngine.UI.InputField>() != null || selected.GetComponent<TMPro.TMP_InputField>() != null);
+        }
     }
 }

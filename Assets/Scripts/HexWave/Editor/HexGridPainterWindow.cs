@@ -15,6 +15,7 @@ namespace NangClicker.HexWave.Editor
 
         [SerializeField] private HexWaveManager manager;
         [SerializeField] private PaintMode paintMode;
+        [SerializeField] private HexBoundarySettings wallResponse = HexBoundarySettings.Fixed;
 
         [MenuItem("Tools/Hex Wave/Grid Painter")]
         public static void OpenFromMenu()
@@ -68,6 +69,13 @@ namespace NangClicker.HexWave.Editor
                 true);
 
             paintMode = (PaintMode)GUILayout.Toolbar((int)paintMode, new[] { "Add", "Erase", "Wall", "Floor" });
+            if (paintMode == PaintMode.Wall)
+            {
+                var data = new SerializedObject(this);
+                EditorGUILayout.PropertyField(data.FindProperty("wallResponse"), true);
+                data.ApplyModifiedProperties();
+                EditorGUILayout.HelpBox("Wall response is independent from floor motion. Amplify uses a finite energy budget and falls back when expired. Rebuild resets active waves and wall budgets.", MessageType.Info);
+            }
 
             if (manager == null)
             {
@@ -128,10 +136,11 @@ namespace NangClicker.HexWave.Editor
             else
             {
                 HexCellView cell = FindCell(coordinate);
-                if (cell != null && cell.IsWall != (paintMode == PaintMode.Wall))
+                if (cell != null && (paintMode == PaintMode.Wall || cell.IsWall))
                 {
                     Undo.RecordObject(cell, "Paint Hex Wall");
-                    cell.SetWall(paintMode == PaintMode.Wall);
+                    if (paintMode == PaintMode.Wall && wallResponse.IsValid) cell.SetWallResponse(wallResponse);
+                    else if (paintMode == PaintMode.Floor) cell.SetWall(false);
                     PrefabUtility.RecordPrefabInstancePropertyModifications(cell);
                     EditorUtility.SetDirty(cell);
                     FinalizeGridChange();

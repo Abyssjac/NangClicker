@@ -105,6 +105,8 @@ namespace NangClicker.HexWave
         public int SpawnCandidateCount => spawnCandidates.Count;
         public int ReachableCellCount => distanceField.Count;
         public int InitialTargetPoints => initialTargetPoints;
+        public HexDamageSettings DamageSettings => new HexDamageSettings
+        { minimumHeight = minimumDamageHeight, heightScale = heightDamageScale, interval = enemyHurtStep };
         public int TargetPointsRemaining => targetPointsRemaining;
         public int TotalReachedCount => totalReachedCount;
         public bool NavigationReady => navigationReady;
@@ -584,14 +586,9 @@ namespace NangClicker.HexWave
                 if (!waveManager.TryGetCellIndex(stack.Coordinate, out int cellIndex))
                     continue;
 
-                float effectiveHeight = Mathf.Max(
-                    0f,
-                    Mathf.Abs(waveManager.GetCurrentHeight(cellIndex)) - minimumDamageHeight);
-                int baseDamage = Mathf.CeilToInt(effectiveHeight * heightDamageScale);
-                if (baseDamage <= 0)
+                long scaledDamage = HexWaveDamage.Evaluate(waveManager.GetCurrentHeight(cellIndex), DamageSettings, stack.Count);
+                if (scaledDamage <= 0)
                     continue;
-
-                long scaledDamage = (long)baseDamage * stack.Count;
                 stack.TotalHealth = (int)Math.Max(0L, stack.TotalHealth - scaledDamage);
                 changed = true;
 
