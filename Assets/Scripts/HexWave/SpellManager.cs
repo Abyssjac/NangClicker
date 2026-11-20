@@ -4,6 +4,8 @@ using UnityEngine.EventSystems;
 
 namespace NangClicker.HexWave
 {
+    public enum HexSpellDirectionMode { ManualRotation = 0, PlayerToTarget = 1 }
+
     [DefaultExecutionOrder(-50), DisallowMultipleComponent, RequireComponent(typeof(HexWaveManager))]
     public sealed class SpellManager : MonoBehaviour
     {
@@ -12,6 +14,10 @@ namespace NangClicker.HexWave
         [SerializeField] private HexSpellPreviewRenderer preview;
         [SerializeField] private Key_HexSpellPP[] slots = { Key_HexSpellPP.Line, Key_HexSpellPP.ChargedTriangle, Key_HexSpellPP.ResonanceCage };
         [SerializeField] private int selectedSlot;
+        [SerializeField] private HexSpellDirectionMode directionMode = HexSpellDirectionMode.PlayerToTarget;
+        [SerializeField] private LayerMask terrainQueryMask = ~0;
+        private PlayerAgent lockedPlayer;
+        private int lastAutoDirection;
         [Range(0, 5), SerializeField] private int direction;
         [SerializeField] private float strengthMultiplier = 1;
         private HexSpellDatabase database;
@@ -19,7 +25,9 @@ namespace NangClicker.HexWave
         private HexSpellProperty chargingSpell;
         private float chargingMultiplier;
         public int SelectedSlot => selectedSlot;
-        public int Direction => direction;
+        public int Direction => activeCast != null ? activeCast.Direction :
+            directionMode == HexSpellDirectionMode.ManualRotation ? direction : lastAutoDirection;
+        public HexSpellDirectionMode DirectionMode => directionMode;
         public Key_HexSpellPP[] Slots => slots;
         public HexWaveManager WaveManager => waveManager;
         public HexSpellProperty SelectedSpell => GetSpell(selectedSlot);
@@ -48,14 +56,48 @@ namespace NangClicker.HexWave
         }
         public void RotateDirection()
         {
-            if (IsCharging) return; // The committed aim cannot rotate during a held cast.
+            if (IsCharging || directionMode != HexSpellDirectionMode.ManualRotation) return; // The committed aim cannot rotate during a held cast.
             direction = (direction + 1) % 6;
+        }
+        public static int QuantizeDirection(HexCoordinate player, HexCoordinate target, int fallback = 0)
+        {
+            Vector3 delta = target.ToLocalPosition(1) - player.ToLocalPosition(1);
+            if (delta.sqrMagnitude < 0.000001f) return (fallback % 6 + 6) % 6;
+            float best = float.NegativeInfinity; int result = 0;
+            for (int i = 0; i < 6; i++)
+            {
+                var axis = HexCoordinate.GetNeighborDirection(1).Rotate(i).ToLocalPosition(1).normalized;
+                float score = Vector3.Dot(delta.normalized, axis);
+                if (score > best + 0.000001f) { best = score; result = i; }
+            }
+            return result;
+        }
+        private bool TryPlayer(out PlayerAgent player, out HexCellView cell)
+        {
+            player = PlayerManager.Instance != null ? PlayerManager.Instance.ActivePlayer : null;
+            cell = null;
+            var motor = player != null ? player.GetComponent<HexPlayerMotor>() : null;
+            return motor != null && motor.TryGetCurrentCell(out cell);
+        }
+        private int AimDirection(HexCoordinate target)
+        {
+            if (directionMode == HexSpellDirectionMode.ManualRotation) return direction;
+            if (TryPlayer(out _, out var playerCell)) lastAutoDirection = QuantizeDirection(playerCell.Coordinate, target, lastAutoDirection);
+            return lastAutoDirection;
+        }
+        private void ReleaseMovementLock()
+        {
+            if (lockedPlayer != null) lockedPlayer.ReleaseMovementLock(this);
+            lockedPlayer = null;
         }
         public bool BeginAt(HexCoordinate origin)
         {
             if (activeCast != null || waveManager == null) return false;
+            if (!TryPlayer(out var player, out _)) return false;
+            int castDirection = AimDirection(origin);
             chargingSpell = SelectedSpell; chargingMultiplier = strengthMultiplier;
-            activeCast = waveManager.BeginSpell(chargingSpell, origin, direction, chargingMultiplier);
+            activeCast = waveManager.BeginSpell(chargingSpell, origin, castDirection, chargingMultiplier);
+            if (activeCast != null) { lockedPlayer = player; player.AcquireMovementLock(this); }
             return activeCast != null;
         }
         public bool ReleaseCurrent()
@@ -64,18 +106,18 @@ namespace NangClicker.HexWave
             bool result = false;
             if (IsReady) result = waveManager.ReleaseSpell(activeCast);
             else waveManager.CancelSpell(activeCast);
-            activeCast = null; chargingSpell = null; if (preview != null) preview.Hide();
+            ReleaseMovementLock(); activeCast = null; chargingSpell = null; if (preview != null) preview.Hide();
             return result;
         }
         public void CancelCurrent()
         {
             if (activeCast != null && waveManager != null) waveManager.CancelSpell(activeCast);
-            activeCast = null; chargingSpell = null; if (preview != null) preview.Hide();
+            ReleaseMovementLock(); activeCast = null; chargingSpell = null; if (preview != null) preview.Hide();
         }
         private void Update()
         {
             if (activeCast != null && activeCast.Phase != HexCastPhase.Charging && activeCast.Phase != HexCastPhase.Ready)
-            { activeCast = null; chargingSpell = null; }
+            { ReleaseMovementLock(); activeCast = null; chargingSpell = null; }
             bool locked = Time.timeScale <= 0 || inputCamera == null || !inputCamera.isActiveAndEnabled ||
                 inputCamera.TryGetComponent<CameraBase>(out var cameraBase) && cameraBase.IsInputLocked || EditingText();
             if (locked) { CancelCurrent(); return; }
@@ -97,11 +139,11 @@ namespace NangClicker.HexWave
                 HexSpellTestUI.IsPointerOverPanel(Input.mousePosition) || !inputCamera.pixelRect.Contains(Input.mousePosition))
             { if (preview != null) preview.Hide(); return; }
             var ray = inputCamera.ScreenPointToRay(Input.mousePosition);
-            if (!Physics.Raycast(ray, out var hit)) { if (preview != null) preview.Hide(); return; }
-            var cell = hit.collider.GetComponentInParent<HexCellView>();
+            if (!waveManager.TryRaycastCell(ray, out var cell, out _, 1000, terrainQueryMask.value))
+            { if (preview != null) preview.Hide(); return; }
             if (cell == null || !waveManager.TryGetCell(cell.Coordinate, out var owned) || cell != owned)
             { if (preview != null) preview.Hide(); return; }
-            if (preview != null) preview.Show(waveManager, spell, cell.Coordinate, direction, strengthMultiplier);
+            if (preview != null) preview.Show(waveManager, spell, cell.Coordinate, AimDirection(cell.Coordinate), strengthMultiplier);
             if (Input.GetMouseButtonDown(0)) BeginAt(cell.Coordinate);
         }
         private void OnApplicationFocus(bool focused) { if (!focused) CancelCurrent(); }

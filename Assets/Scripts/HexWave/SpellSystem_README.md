@@ -85,3 +85,64 @@ No AbyssToolKit/package sources or build settings are modified.
 
 Tools > Hex Wave > Verify Spell Simulation runs isolated deterministic checks: all skill rotations, finite states and retirement, charge/hold/cancel, snapshot isolation, delayed execution, exact three-wall addition, aggregate cancellation, older-wave contacts, dynamic wall retirement/expiry, overlapping leases, absorption width, blocked events, height damage and editor canvas transforms.
 Manual game check: select slot 2, cancel an early hold, then hold to READY and release. Select slot 3 to inspect temporary purple walls and their expiry. Reopen/use the editor across Play Mode transitions and confirm its columns remain visible.
+
+## Terrain and registered player
+
+S_MainGame now contains HexWizardPlayer, a true Variant of MovementEssential PlayerRootCC.
+AInitGameObject Variant hosts the existing PlayerManager and registers HexTerrainSurfaceDB_main with PropertyDatabaseManager.
+PlayerAgent still owns registration and its owner-based movement locks. HexPlayerMotor reads PlayerControl and moves the same CharacterController.
+The package's generic PlayerMovementCC and camera binding are disabled in this Variant so they cannot spawn a second camera or rotate the entire actor; their sources are unchanged. PlayerAgent still routes InputEnabled through the existing movement component.
+
+WASD is relative to the existing scene camera's horizontal axes. No jump/sprint is enabled.
+HexPlayerFacing smoothly rotates only FlipPivot around local Y (0/180 degrees, default 0.15s); the sprite is upright in a fixed world plane with no billboard behavior.
+The visible sprite is fitted to the 1.35-unit capsule height and at most 0.95 tile spacing in width, using alpha bounds only to configure import scale/pivot; the generated PNG is unchanged.
+Supporting grid motion is published before player movement, synchronized to physics, and carried vertically even while input is locked.
+The controller ignores only its supporting collider during that support's carry, preserving other collision pairs.
+A floor gap can cause a fall; falling below the configurable local Y threshold respawns at spawnCell. Authored Wall cells are non-walkable even at floor height.
+
+SpellManager.directionMode selects PlayerToTarget (scene default) or ManualRotation.
+Mouse picking still supplies the spell anchor. PlayerToTarget uses player-cell center toward target-cell center, quantized to the nearest of six spell axes; ties choose the lower index and same-cell casts reuse the last direction.
+ManualRotation retains R. Mouse-down snapshots origin/direction and acquires the existing PlayerAgent lock; cancel/ready release releases only the spell manager's lock owner.
+Existing skill slots and spell SO layouts are preserved.
+
+## Map authoring and terrain surfaces
+
+Open Tools > Hex Wave > Grid Painter (window title Hex Map Editor).
+Structure layer: Select / Floor / Wall / Erase; radius is in hex steps. Wall response selects the existing shared Fixed, Absorb or Amplify profile. No Free wall was added.
+Wall Top offset H is relative to the original floor top (local 1.5). Column depth D extends downward:
+top = 1.5 + H, bottom = 1.5 + H - D.
+Increasing D does not raise the top; increasing H moves both top/bottom together. A Floor always restores the original top and depth.
+The map still treats missing neighbors as automatic fixed wave boundaries. Explicit wall painting separately chooses shared response behavior.
+Surface / Material layer paints Grass / Dirt / Rock / Snow / Water on existing cells without changing role, geometry or navigation. Water is a visual profile only.
+The 2D canvas and Scene View brush edit the same scene objects. Wheel zooms, MMB pans, Frame Map fits the map and Reset View restores default framing.
+A stroke is one Undo group and rebuilds topology only once when geometry/roles changed; surface-only strokes do not rebuild topology.
+Wall function uses an independent outline/glyph: Fixed gray outline, Absorb cyan minus, Amplify purple plus. Terrain material remains visible. Fixed markers create no glyph or contact-edge children.
+Save Scene persists authoring changes. Painting is disabled during Play Mode.
+
+HexTerrainSurfaceProperty/HexTerrainSurfaceDatabase follow the project's enum/string PropertyDatabase family.
+Shared profiles: Assets/A_Systems/HexTerrainSystem/AllSOs/HexTerrainSurfaceSOs.
+Materials: Assets/Prefabs/HexWave/Terrain/Materials.
+Persistent meshes: Assets/Prefabs/HexWave/Terrain/Meshes.
+HexTerrainAuthoring caches one mesh asset per radius/depth rounded to 0.001; top planar UVs, independent side vertices/hard normals, and side V measured in world-length units preserve texture density as walls deepen.
+Collider and visible mesh share the same geometry. Meshes are not regenerated during waves; runtime motion translates the cell root.
+The URP Hex Terrain shader provides faceted top color variation, a soil band, rock sides and a water-style surface.
+HexWaveRenderer no longer applies wave height gradients or legacy wall material tints. It retains the old serialized settings as hidden data.
+
+Tools > Hex Wave > Install Terrain And Player In Active Scene is explicit and never runs on import.
+It creates only missing surface assets/Variant, registers one central DB/player manager, upgrades cell meshes and connects the scene actor.
+Existing authored surface profiles and player Variant settings are preserved on subsequent runs.
+No package, AbyssToolKit source, camera architecture or project setting is changed.
+
+## Player / terrain verification
+
+Tools > Hex Wave > Verify Terrain And Player Assets checks 148 conditions, including shared surfaces/shaders, true Variant/CC setup, mesh winding/UV density, six-direction quantization, brush rebuild batching, Undo, surface isolation and actor-transparent terrain picking in an isolated physics scene.
+HexTerrainPlayerVerification.RunPlay() must run in Play Mode; it checks registration, real CC movement, existing lock ownership, carry during controlled lift and return, cast direction/commit, and falling respawn.
+The existing spell simulation verification remains available. Test fixtures are temporary and do not replace the scene map or authored spells.
+
+## Placeholder art provenance
+
+Asset: Assets/Prefabs/HexWave/Player/WizardPlaceholder.png.
+Created with the built-in imagegen tool in transparent-background mode; copied into the project without raster edits.
+Prompt:
+
+> Use case: stylized-concept. Asset type: single Unity 2D character sprite. Generate one full-body cute cartoon wizard, standing upright on a horizontal ground, neutral idle pose, facing slightly to the viewer's right so left-right flipping reads clearly. Oversized pointed blue-violet hat, simple teal-blue robe, small belt, readable boots and friendly face; compact chibi proportions, clean low-detail painted shapes and restrained dark outlines, suitable at one hex tile wide in a low-poly fantasy strategy game. Orthographic front-three-quarter character view, NOT an overhead view. Entire hat, hands, and boots visible, feet on the same baseline, centered character with generous transparent margin. Single isolated character, genuinely transparent background. No ground plane, no floor shadow, no scenery, no text, no border, no multiple views, no sprite sheet, no motion blur.

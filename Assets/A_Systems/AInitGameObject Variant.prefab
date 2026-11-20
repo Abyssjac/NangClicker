@@ -54,7 +54,7 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 6961653617491484666, guid: 6d2e17855d1197545a326b1e823073f3, type: 3}
       propertyPath: allDatabases.Array.size
-      value: 2
+      value: 3
       objectReference: {fileID: 0}
     - target: {fileID: 6961653617491484666, guid: 6d2e17855d1197545a326b1e823073f3, type: 3}
       propertyPath: 'allDatabases.Array.data[0]'
@@ -67,7 +67,7 @@ PrefabInstance:
     - target: {fileID: 6961653617491484666, guid: 6d2e17855d1197545a326b1e823073f3, type: 3}
       propertyPath: 'allDatabases.Array.data[2]'
       value: 
-      objectReference: {fileID: 11400000, guid: 2a5bd9c5ca474ff0a2c7b0a3752598bf, type: 2}
+      objectReference: {fileID: 11400000, guid: be225315d910b714485e798b8d043ba4, type: 2}
     m_RemovedComponents:
     - {fileID: 7292739574960922526, guid: 6d2e17855d1197545a326b1e823073f3, type: 3}
     m_RemovedGameObjects: []
@@ -76,6 +76,9 @@ PrefabInstance:
     - targetCorrespondingSourceObject: {fileID: 233144074376067813, guid: 6d2e17855d1197545a326b1e823073f3, type: 3}
       insertIndex: -1
       addedObject: {fileID: 694763122728845001}
+    - targetCorrespondingSourceObject: {fileID: 233144074376067813, guid: 6d2e17855d1197545a326b1e823073f3, type: 3}
+      insertIndex: -1
+      addedObject: {fileID: 3711108979795124709}
   m_SourcePrefab: {fileID: 100100000, guid: 6d2e17855d1197545a326b1e823073f3, type: 3}
 --- !u!1 &4112564721625983497 stripped
 GameObject:
@@ -95,3 +98,15 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Abyss.General.Runtime::AllCameraManager
   defaultCameraMode: 20
+--- !u!114 &3711108979795124709
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 4112564721625983497}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: fbf1a9900430f5546a8b4de25c5ed7da, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Abyss.General.Runtime::PlayerManager

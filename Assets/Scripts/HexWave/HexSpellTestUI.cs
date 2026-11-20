@@ -87,7 +87,9 @@ namespace NangClicker.HexWave
             chargeFill.color = manager.IsReady ? new Color(0.55f, 1, 0.8f) : new Color(0.3f, 0.7f, 1);
             heading.text = manager.IsReady ? "READY - RELEASE MOUSE TO CAST" :
                 manager.IsCharging ? $"CHARGING {manager.ChargeElapsed:0.0} / {manager.ChargeDuration:0.0}s" :
-                $"1/2/3 Select  |  R Rotate {manager.Direction + 1}/6  |  Hold LMB";
+                manager.DirectionMode == HexSpellDirectionMode.ManualRotation ?
+                    $"1/2/3 Select | R Rotate {manager.Direction + 1}/6 | Hold LMB" :
+                    $"1/2/3 Select | Auto Aim {manager.Direction + 1}/6 | Hold LMB";
         }
         private void OnDestroy() { if (active == this) active = null; }
         private static RectTransform MakeRect(string name, Transform parent, Vector2 anchor, Vector2 size, Vector2 position)

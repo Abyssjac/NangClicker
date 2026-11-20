@@ -1,0 +1,21 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: b406925f37cbeac41b2f3f964d616c04, type: 3}
+  m_Name: HexTerrainSurfaceDB_main
+  m_EditorClassIdentifier: Assembly-CSharp::NangClicker.HexWave.HexTerrainSurfaceDatabase
+  entries:
+  - {fileID: 11400000, guid: 50bb6b511b8950e43b0aa2f5939ae35b, type: 2}
+  - {fileID: 11400000, guid: 38890b6436b2d09499a44f2dc3033ede, type: 2}
+  - {fileID: 11400000, guid: ae0aef30b165b5040bb93b8b1ec7b9e8, type: 2}
+  - {fileID: 11400000, guid: 083ab52f8ccf4c544b243340629fd766, type: 2}
+  - {fileID: 11400000, guid: 7e8041ffb1d45434b9a623e30a1eb94e, type: 2}
+  scanFolder: A_Systems/HexTerrainSystem/AllSOs/HexTerrainSurfaceSOs

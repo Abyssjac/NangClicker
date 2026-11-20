@@ -29,18 +29,23 @@ namespace NangClicker.HexWave
                 var cell = manager.GetCellView(i);
                 if (!manager.IsWaveWall(cell.Coordinate)) continue;
                 var mode = manager.GetWallResponseMode(cell.Coordinate);
-                if (mode == HexSpellEdgeMode.Fixed) continue;
                 if (!markers.TryGetValue(cell.Coordinate, out var mark))
                 {
                     mark = CreateMarker(); markers.Add(cell.Coordinate, mark);
                 }
                 mark.root.SetActive(true);
-                mark.root.transform.position = cell.transform.position;
+                mark.root.transform.position = cell.SurfacePoint + Vector3.up * 0.04f;
                 mark.root.transform.rotation = manager.CellsRoot.rotation;
                 mark.root.transform.localScale = Vector3.one * manager.Spacing;
                 float fade = Mathf.Lerp(0.3f, 1, Mathf.Clamp01(manager.World.WallRemaining01(cell.Coordinate) * 4));
                 var color = ColorFor(mode); color.a = fade;
                 mark.outline.startColor = mark.outline.endColor = color;
+                bool functional = mode != HexSpellEdgeMode.Fixed;
+                if (functional && mark.symbol == null) AddResponseDetails(mark);
+                if (mark.symbol == null) continue;
+                mark.symbol.gameObject.SetActive(functional);
+                foreach (var edge in mark.edges) edge.gameObject.SetActive(functional);
+                if (!functional) continue;
                 mark.symbol.text = mode == HexSpellEdgeMode.Amplify ? "+" : "-";
                 mark.symbol.color = Color.Lerp(color, Color.white, manager.World.WallFlash(cell.Coordinate));
                 if (Camera.main != null) mark.symbol.transform.rotation = Camera.main.transform.rotation;
@@ -58,6 +63,11 @@ namespace NangClicker.HexWave
             mark.root.transform.SetParent(transform, false);
             mark.outline = Line("Outline", mark.root.transform, 0.04f); mark.outline.positionCount = 7;
             for (int c = 0; c <= 6; c++) mark.outline.SetPosition(c, Corner(c));
+            mark.edges = System.Array.Empty<LineRenderer>();
+            return mark;
+        }
+        private void AddResponseDetails(Marker mark)
+        {
             mark.edges = new LineRenderer[6];
             for (int d = 0; d < 6; d++)
             {
@@ -65,11 +75,10 @@ namespace NangClicker.HexWave
                 int corner = (7 - d) % 6; edge.SetPosition(0, Corner(corner)); edge.SetPosition(1, Corner(corner + 1));
             }
             var label = new GameObject("Response"); label.transform.SetParent(mark.root.transform, false);
-            label.transform.localPosition = Vector3.up * 1.7f;
+            label.transform.localPosition = Vector3.up * 0.18f;
             mark.symbol = label.AddComponent<TextMesh>(); mark.symbol.font = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
             mark.symbol.fontSize = 40; mark.symbol.characterSize = 0.075f; mark.symbol.anchor = TextAnchor.MiddleCenter;
             label.GetComponent<Renderer>().sharedMaterial = mark.symbol.font.material;
-            return mark;
         }
         private LineRenderer Line(string name, Transform parent, float width)
         {
@@ -79,7 +88,7 @@ namespace NangClicker.HexWave
             return line;
         }
         private static Vector3 Corner(int c)
-        { float angle = c * Mathf.PI / 3; return new Vector3(Mathf.Cos(angle) / Mathf.Sqrt(3), 1.55f, Mathf.Sin(angle) / Mathf.Sqrt(3)); }
+        { float angle = c * Mathf.PI / 3; return new Vector3(Mathf.Cos(angle) / Mathf.Sqrt(3), 0, Mathf.Sin(angle) / Mathf.Sqrt(3)); }
         private void OnDestroy() { if (material != null) Destroy(material); }
     }
 }

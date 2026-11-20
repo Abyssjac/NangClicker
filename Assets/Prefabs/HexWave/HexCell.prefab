@@ -42,7 +42,7 @@ MeshFilter:
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 9213031473969826284}
-  m_Mesh: {fileID: 4300000, guid: 3a98e2743835d104695d8e97dafab139, type: 2}
+  m_Mesh: {fileID: 4300000, guid: eef2bc3e5d9d3b54cba667394200688e, type: 2}
 --- !u!23 &571316406452356144
 MeshRenderer:
   m_ObjectHideFlags: 0
@@ -68,7 +68,7 @@ MeshRenderer:
   m_RenderingLayerMask: 1
   m_RendererPriority: 0
   m_Materials:
-  - {fileID: 2100000, guid: b41aa6ba4e51ff442a3eb3d3fc23a808, type: 2}
+  - {fileID: 2100000, guid: 9ad8a0b70f5a4dc4e86e0122dbe01f4d, type: 2}
   m_StaticBatchInfo:
     firstSubMesh: 0
     subMeshCount: 0
@@ -113,7 +113,7 @@ MeshCollider:
   serializedVersion: 5
   m_Convex: 0
   m_CookingOptions: 30
-  m_Mesh: {fileID: 4300000, guid: 3a98e2743835d104695d8e97dafab139, type: 2}
+  m_Mesh: {fileID: 4300000, guid: eef2bc3e5d9d3b54cba667394200688e, type: 2}
 --- !u!114 &5953970869746765077
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -131,5 +131,17 @@ MonoBehaviour:
     b: 0
     c: 0
   targetRenderer: {fileID: 571316406452356144}
+  isWall: 0
+  useWallResponse: 0
+  wallResponse:
+    mode: 2
+    damping: 5
+    absorptionWidth: 2
+    profile: 1
+  surface: 1
+  columnRadius: 0.6
+  wallDepth: 1.5
+  wallTopHeight: 0
+  terrainSchemaVersion: 1
   baseLocalPosition: {x: 0, y: 0, z: 0}
   fixedBoundary: 0

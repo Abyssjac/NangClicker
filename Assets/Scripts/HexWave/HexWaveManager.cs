@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using JackyUtility;
 using UnityEngine;
+using UnityEngine.SceneManagement;
 
 namespace NangClicker.HexWave
 {
@@ -32,6 +33,8 @@ namespace NangClicker.HexWave
         private float[] heights = Array.Empty<float>(), previousHeights = Array.Empty<float>(), velocities = Array.Empty<float>();
         private HexWaveWorld world;
         private HexBoundaryProfileDatabase profileDatabase;
+        private HexTerrainSurfaceDatabase surfaceDatabase;
+        private RaycastHit[] terrainHits = new RaycastHit[32];
         private bool initialized;
         private int topologyVersion;
         public Transform CellsRoot => cellsRoot != null ? cellsRoot : transform;
@@ -58,6 +61,43 @@ namespace NangClicker.HexWave
             if (profileDatabase == null && PropertyDatabaseManager.Instance != null)
                 profileDatabase = PropertyDatabaseManager.Instance.GetDatabase<HexBoundaryProfileDatabase>();
             return profileDatabase != null ? profileDatabase.GetByEnum(key) : null;
+        }
+        public HexTerrainSurfaceProperty GetSurfaceProfile(Key_HexTerrainSurfacePP key)
+        {
+            if (surfaceDatabase == null && PropertyDatabaseManager.Instance != null)
+                surfaceDatabase = PropertyDatabaseManager.Instance.GetDatabase<HexTerrainSurfaceDatabase>();
+            return surfaceDatabase != null ? surfaceDatabase.GetByEnum(key) : null;
+        }
+        public bool TryGetCellAtWorld(Vector3 worldPosition, out HexCellView cell)
+        {
+            var local = CellsRoot.InverseTransformPoint(worldPosition);
+            return TryGetCell(HexCoordinate.FromLocalPosition(local, spacing), out cell);
+        }
+        public bool TryRaycastCell(Ray ray, out HexCellView cell, out RaycastHit closest, float distance = 1000, int layerMask = ~0)
+        {
+            cell = null; closest = default; float best = distance;
+            // Query only owned terrain hits, so sprites, the player capsule and decorative colliders never mask a tile.
+            var physics = gameObject.scene.GetPhysicsScene();
+            int count = physics.Raycast(ray.origin, ray.direction, terrainHits, distance, layerMask, QueryTriggerInteraction.Ignore);
+            while (count == terrainHits.Length)
+            {
+                Array.Resize(ref terrainHits, terrainHits.Length * 2);
+                count = physics.Raycast(ray.origin, ray.direction, terrainHits, distance, layerMask, QueryTriggerInteraction.Ignore);
+            }
+            for (int hitIndex = 0; hitIndex < count; hitIndex++)
+            {
+                var hit = terrainHits[hitIndex];
+                if (hit.distance >= best) continue;
+                var candidate = hit.collider.GetComponentInParent<HexCellView>();
+                if (candidate == null || !TryGetCell(candidate.Coordinate, out var owned) || owned != candidate) continue;
+                best = hit.distance; cell = candidate; closest = hit;
+            }
+            return cell != null;
+        }
+        public bool TryGetSurfacePoint(HexCoordinate coordinate, out Vector3 point)
+        {
+            if (TryGetCell(coordinate, out var cell)) { point = cell.SurfacePoint; return true; }
+            point = default; return false;
         }
         private HexBoundarySource SceneSource(HexCoordinate coordinate)
         {

@@ -2,164 +2,56 @@ using UnityEngine;
 
 namespace NangClicker.HexWave
 {
-    [DisallowMultipleComponent]
+    /// <summary>Publishes one interpolated terrain pose before character movement. Materials own their base colors.</summary>
+    [DefaultExecutionOrder(-90), DisallowMultipleComponent]
     public sealed class HexWaveRenderer : MonoBehaviour
     {
         [SerializeField] private HexWaveManager manager;
         [SerializeField] private bool interpolatePhysicsSnapshots = true;
-        [Min(0.0001f)] [SerializeField] private float colorHeightRange = 1f;
-        [SerializeField] private Gradient heightGradient = CreateDefaultGradient();
-        [SerializeField] private Color wallColor = new Color(0.16f, 0.18f, 0.22f, 1f);
-        [SerializeField] private string colorPropertyName = "_BaseColor";
-
-        private MaterialPropertyBlock propertyBlock;
-        private int colorPropertyId;
-        private int fallbackColorPropertyId;
-
-        private void Reset()
-        {
-            manager = GetComponent<HexWaveManager>();
-            heightGradient = CreateDefaultGradient();
-        }
-
+        // Retained serialized fields preserve authored legacy settings; the terrain material path does not write their colors.
+        [SerializeField, HideInInspector] private float colorHeightRange;
+        [SerializeField, HideInInspector] private Gradient heightGradient;
+        [SerializeField, HideInInspector] private Color wallColor;
+        [SerializeField, HideInInspector] private string colorPropertyName;
+        private void Reset() => manager = GetComponent<HexWaveManager>();
         private void Awake()
         {
-            if (manager == null)
-                manager = GetComponent<HexWaveManager>();
-
-            EnsurePropertyBlock();
-            RefreshPropertyIds();
+            if (manager == null) manager = GetComponent<HexWaveManager>();
+            ApplyMaterials();
         }
-
-        private void OnEnable()
+        private void Update() => RefreshPhysicsPose();
+        public void RefreshPhysicsPose()
         {
-            EnsurePropertyBlock();
-        }
-
-        private void OnValidate()
-        {
-            colorHeightRange = Mathf.Max(0.0001f, colorHeightRange);
-            if (string.IsNullOrWhiteSpace(colorPropertyName))
-                colorPropertyName = "_BaseColor";
-            RefreshPropertyIds();
-        }
-
-        private void LateUpdate()
-        {
-            if (manager == null || !manager.IsInitialized)
-                return;
-
-            EnsurePropertyBlock();
-
-            float interpolation = 1f;
-            if (interpolatePhysicsSnapshots && Time.fixedDeltaTime > Mathf.Epsilon)
-                interpolation = Mathf.Clamp01((Time.time - Time.fixedTime) / Time.fixedDeltaTime);
-
+            if (manager == null || !manager.IsInitialized) return;
+            float interpolation = interpolatePhysicsSnapshots && Time.fixedDeltaTime > Mathf.Epsilon
+                ? Mathf.Clamp01((Time.time - Time.fixedTime) / Time.fixedDeltaTime) : 1;
+            bool moved = false;
             for (int i = 0; i < manager.CellCount; i++)
             {
-                HexCellView cell = manager.GetCellView(i);
-                if (cell == null)
-                    continue;
-
-                if (manager.IsWaveWall(cell.Coordinate))
-                {
-                    cell.ApplyHeight(Mathf.Lerp(manager.GetPreviousHeight(i), manager.GetCurrentHeight(i), interpolation));
-                    int wallPropertyId = ResolveColorProperty(cell);
-                    cell.ApplyColor(propertyBlock, wallPropertyId, ResolveWallColor(cell));
-                    continue;
-                }
-
-                float height = Mathf.Lerp(
-                    manager.GetPreviousHeight(i),
-                    manager.GetCurrentHeight(i),
-                    interpolation);
-
-                cell.ApplyHeight(height);
-
-                float colorPosition = Mathf.InverseLerp(-colorHeightRange, colorHeightRange, height);
-                Color color = heightGradient.Evaluate(colorPosition);
-                int propertyId = ResolveColorProperty(cell);
-                cell.ApplyColor(propertyBlock, propertyId, color);
+                var cell = manager.GetCellView(i); if (cell == null) continue;
+                float h = Mathf.Lerp(manager.GetPreviousHeight(i), manager.GetCurrentHeight(i), interpolation);
+                var before = cell.transform.localPosition; cell.ApplyHeight(h);
+                moved |= before != cell.transform.localPosition;
+            }
+            if (moved) Physics.SyncTransforms();
+        }
+        private void ApplyMaterials()
+        {
+            if (manager == null) return;
+            for (int i = 0; i < manager.CellCount; i++)
+            {
+                var cell = manager.GetCellView(i); if (cell == null) continue;
+                var surface = manager.GetSurfaceProfile(cell.Surface);
+                cell.SetSurface(cell.Surface, surface != null ? surface.material : null);
+                if (cell.TargetRenderer != null) cell.TargetRenderer.SetPropertyBlock(null);
             }
         }
-
-        public void Configure(HexWaveManager targetManager, float heightRange)
-        {
-            manager = targetManager;
-            colorHeightRange = Mathf.Max(0.0001f, heightRange);
-            heightGradient = CreateDefaultGradient();
-            RefreshPropertyIds();
-        }
-
+        public void Configure(HexWaveManager targetManager, float unusedLegacyRange)
+        { manager = targetManager; ApplyMaterials(); }
         public void RefreshBoundaryPreview()
         {
-            if (manager == null)
-                manager = GetComponent<HexWaveManager>();
-
-            if (manager == null || !manager.IsInitialized)
-                return;
-
-            EnsurePropertyBlock();
-            RefreshPropertyIds();
-            Color restingColor = heightGradient.Evaluate(0.5f);
-
-            for (int i = 0; i < manager.CellCount; i++)
-            {
-                HexCellView cell = manager.GetCellView(i);
-                if (cell == null)
-                    continue;
-
-                Color color = manager.IsFixedBoundary(i) ? ResolveWallColor(cell) : restingColor;
-                cell.ApplyColor(propertyBlock, ResolveColorProperty(cell), color);
-            }
-        }
-
-        private int ResolveColorProperty(HexCellView cell)
-        {
-            Renderer targetRenderer = cell.TargetRenderer;
-            if (targetRenderer != null && targetRenderer.sharedMaterial != null &&
-                targetRenderer.sharedMaterial.HasProperty(colorPropertyId))
-            {
-                return colorPropertyId;
-            }
-
-            return fallbackColorPropertyId;
-        }
-
-        private Color ResolveWallColor(HexCellView cell)
-        {
-            var mode = manager.GetWallResponseMode(cell.Coordinate);
-            return mode == HexSpellEdgeMode.Fixed ? wallColor : HexWallVisual.ColorFor(mode);
-        }
-
-        private void RefreshPropertyIds()
-        {
-            colorPropertyId = Shader.PropertyToID(colorPropertyName);
-            fallbackColorPropertyId = Shader.PropertyToID("_Color");
-        }
-
-        private void EnsurePropertyBlock()
-        {
-            if (propertyBlock == null)
-                propertyBlock = new MaterialPropertyBlock();
-        }
-
-        private static Gradient CreateDefaultGradient()
-        {
-            Gradient gradient = new Gradient();
-            gradient.SetKeys(
-                new[]
-                {
-                    new GradientColorKey(new Color(1f, 0.32f, 0.04f), 0f),
-                    new GradientColorKey(new Color(0.12f, 0.85f, 0.28f), 0.5f),
-                    new GradientColorKey(new Color(0.08f, 0.38f, 1f), 1f)
-                },
-                new[]
-                {
-                    new GradientAlphaKey(1f, 0f),
-                    new GradientAlphaKey(1f, 1f)
-                });
-            return gradient;
+            if (manager == null) manager = GetComponent<HexWaveManager>();
+            ApplyMaterials();
         }
     }
 }
