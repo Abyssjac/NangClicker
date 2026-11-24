@@ -103,6 +103,20 @@ namespace NangClicker.HexWave.Editor
                 check(wall.Surface==Key_HexTerrainSurfacePP.Water&&wall.TargetRenderer.sharedMaterial==db.GetByEnum(Key_HexTerrainSurfacePP.Water).material,"Painted material must be the shared profile asset.");
                 Undo.PerformUndo();
                 check(wall.Surface==oldSurface&&wall.IsWall,"Undo material stroke must preserve geometry.");
+                SetInt(painter,"layer",0);SetInt(painter,"structureBrush",4);SetFloat(painter,"heightDelta",0.25f);
+                topology=map.TopologyVersion;var originalMesh=wall.GetComponent<MeshFilter>().sharedMesh;
+                var response=wall.WallResponse;int originalCount=map.CellCount;
+                Invoke(painter,"BeginStroke");Invoke(painter,"Stamp",selected);Invoke(painter,"Stamp",selected);
+                Invoke(painter,"Stamp",zero);Invoke(painter,"Stamp",HexCoordinate.FromAxial(99,0));
+                Invoke(painter,"EndStroke");Undo.FlushUndoRecordObjects();
+                check(Mathf.Abs(wall.WallTopHeight-2.25f)<1e-5f,"Height brush must apply once per cell per stroke.");
+                check(map.TryGetCell(zero,out var floor)&&!floor.IsWall&&floor.SurfacePoint.y==1.5f&&map.CellCount==originalCount,"Height brush must skip floor and empty cells.");
+                check(wall.ColumnDepth==3&&wall.Surface==oldSurface&&wall.WallResponse.Equals(response)&&wall.GetComponent<MeshFilter>().sharedMesh==originalMesh,"Height brush must preserve depth, surface, response and shared mesh.");
+                check(map.TopologyVersion==topology,"Height-only strokes must preserve wave topology.");
+                SetFloat(painter,"heightDelta",-0.5f);Invoke(painter,"BeginStroke");Invoke(painter,"Stamp",selected);Invoke(painter,"EndStroke");Undo.FlushUndoRecordObjects();
+                check(Mathf.Abs(wall.WallTopHeight-1.75f)<1e-5f,"A later negative stroke must lower the wall.");
+                Undo.PerformUndo();check(Mathf.Abs(wall.WallTopHeight-2.25f)<1e-5f,"Undo must restore one negative height stroke.");
+                Undo.PerformUndo();check(wall.WallTopHeight==2,"Undo must restore one positive height stroke.");
                 Undo.PerformUndo();
                 check(!wall.IsWall&&Mathf.Abs(wall.SurfacePoint.y-1.5f)<1e-5f,"Undo structure stroke must restore the floor.");
                 var blocker=new GameObject("Actor collider",typeof(CharacterController));SceneManager.MoveGameObjectToScene(blocker,preview);
@@ -142,7 +156,17 @@ namespace NangClicker.HexWave.Editor
                 for(int i=0;i<16;i++)motor.TickMovement(Vector2.right,0.02f);
                 check(Vector2.Distance(new Vector2(start.x,start.z),new Vector2(motor.transform.position.x,motor.transform.position.z))>0.2f,"WASD drive must move the actual CC.");
                 motor.Respawn();spell.SelectSlot(0);SetInt(spell,"directionMode",0);
-                var target=HexCoordinate.Origin;
+                motor.TryGetCurrentCell(out var playerCell);
+                var target=HexCoordinate.Origin;int nearest=int.MaxValue;bool foundTarget=false;
+                for(int i=0;i<map.CellCount;i++)
+                {
+                    var candidate=map.GetCellView(i).Coordinate;
+                    int autoDirection=SpellManager.QuantizeDirection(playerCell.Coordinate,candidate);
+                    int distance=candidate.DistanceTo(HexCoordinate.Origin);
+                    if(distance<nearest&&map.CanCastSpell(spell.SelectedSpell,candidate,0)&&map.CanCastSpell(spell.SelectedSpell,candidate,autoDirection))
+                    {target=candidate;nearest=distance;foundTarget=true;}
+                }
+                if(!foundTarget)throw new InvalidOperationException("Map needs a floor footprint valid for manual and automatic casting.");
                 check(spell.BeginAt(target),"A valid floor cast must begin.");
                 check(agent.IsMovementLocked&&!generic.InputEnabled,"Charge must acquire the existing PlayerAgent movement lock.");
                 start=motor.transform.position;motor.TickMovement(Vector2.right,0.1f);
@@ -185,6 +209,39 @@ namespace NangClicker.HexWave.Editor
                 map.enabled=mapEnabled;motor.enabled=motorEnabled;spell.enabled=inputEnabled;Object.Destroy(lift);
             }
             return "Terrain/player Play Mode verification passed: "+checks+" assertions (registration, CC movement, existing locks, lift/return carry, direction, commit and respawn).";
+        }
+
+        public static string RunFollowPlay()
+        {
+            if(!EditorApplication.isPlaying)throw new InvalidOperationException("Enter Play Mode first.");
+            int checks=0;Action<bool,string> check=(ok,why)=>{if(!ok)throw new InvalidOperationException(why);checks++;};
+            var motor=Object.FindFirstObjectByType<HexPlayerMotor>();
+            var camera=Object.FindFirstObjectByType<HexPlayerFollowCamera>();
+            check(motor!=null&&camera!=null,"Scene must contain the horizontal player follow camera.");
+            check(camera.CameraMode==CameraMode.FollowTarget&&AllCameraManager.Instance.CurrentCameraMode==CameraMode.FollowTarget,"Existing camera manager must activate FollowTarget.");
+            check(AllCameraManager.Instance.FindCamerasActivated().Count==1,"There must be one active registered camera.");
+            check(camera.GetComponent<CameraDragController>()==null,"Free drag must not compete with following.");
+            var original=motor.transform.position;bool motorEnabled=motor.enabled;
+            var controller=motor.GetComponent<CharacterController>();bool controllerEnabled=controller.enabled;
+            try
+            {
+                motor.enabled=false;controller.enabled=false;camera.ActivateCamera();
+                Vector3 before=camera.transform.position;Quaternion rotation=camera.transform.rotation;
+                motor.transform.position=original+Vector3.up*3;
+                for(int i=0;i<30;i++)camera.LateUpdate();
+                check(Vector3.Distance(before,camera.transform.position)<0.0001f,"Pure wave-height changes must not move the camera.");
+                check(Mathf.Abs(camera.PlanarFollowPosition.y-camera.FollowPlaneHeight)<1e-5f,"Proxy target must retain its configured height.");
+                var shift=new Vector3(3,0,-2);motor.transform.position=original+shift+Vector3.up*3;
+                camera.LateUpdate();check(camera.PlanarFollowPosition.x==motor.transform.position.x&&camera.PlanarFollowPosition.z==motor.transform.position.z,"Proxy must follow both horizontal axes.");
+                camera.ActivateCamera();
+                check(Vector3.Distance(camera.transform.position,before+shift)<0.001f,"Horizontal translation must preserve the camera offset and altitude.");
+                check(Quaternion.Angle(rotation,camera.transform.rotation)<0.001f,"Following must preserve the view angle.");
+            }
+            finally
+            {
+                motor.transform.position=original;controller.enabled=controllerEnabled;motor.enabled=motorEnabled;camera.ActivateCamera();Physics.SyncTransforms();
+            }
+            return "Horizontal follow Play Mode verification passed: "+checks+" assertions.";
         }
     }
 }

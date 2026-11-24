@@ -2,7 +2,7 @@
 
 ## Play and configure
 
-Open Assets/Scenes/S_MainGame.unity. Slots are SpellManager.slots; the default three slots use the centrally registered HexSpellDatabase. Select with 1/2/3 (main row or keypad), rotate 60 degrees with R, then hold LMB on a valid floor hex. The anchor, direction, strength and event data are captured on mouse down.
+Open Assets/Scenes/S_MainGame.unity or Assets/Scenes/S_HexTerrainDemo.unity. Slots are SpellManager.slots and use the centrally registered HexSpellDatabase. Select with the slot's number (main row or keypad), then hold LMB on a valid floor hex. PlayerToTarget aims automatically; ManualRotation uses R in 60-degree steps. The anchor, direction, strength and event data are captured on mouse down.
 
 Every skill charges, including impulse-only skills. Early release cancels; lifted contributions return smoothly without a free wave. At full charge the selected slot flashes and the bar says READY - RELEASE MOUSE TO CAST. Continue holding to keep lift targets stationary; release LMB to commit. Right-click, Escape, changing slot, losing application focus, disabling input or pausing cancels the held cast. R does not rotate a held cast. Alt+R is excluded from skill rotation.
 
@@ -94,6 +94,10 @@ PlayerAgent still owns registration and its owner-based movement locks. HexPlaye
 The package's generic PlayerMovementCC and camera binding are disabled in this Variant so they cannot spawn a second camera or rotate the entire actor; their sources are unchanged. PlayerAgent still routes InputEnabled through the existing movement component.
 
 WASD is relative to the existing scene camera's horizontal axes. No jump/sprint is enabled.
+HexPlayerFollowCamera extends the package's PlayerCameraFollow and registers as CameraMode.FollowTarget with the existing AllCameraManager. Its startup coroutine waits for camera registration before requesting this mode; it does not add another camera manager or change the shared manager's default for other scenes.
+The camera follows a transient proxy at (player.x, followPlaneHeight, player.z), default plane Y=1.5. Player lifting/falling never changes that target's Y. The inherited fixed-angle smoothing, scroll zoom and input locks remain active. Zoom can change camera altitude; player wave displacement cannot. Sprite flipping never rotates the camera.
+The two scenes remove CameraDragController from this camera to prevent competing movement. Its script remains available for other free cameras.
+Tools > Hex Wave > Use Horizontal Player Follow Camera upgrades only the active scene's camera/guide. The full player installer also uses this setup. FollowSource is the fallback scene player reference; Follow Active Player prefers PlayerManager.ActivePlayer at runtime.
 HexPlayerFacing smoothly rotates only FlipPivot around local Y (0/180 degrees, default 0.15s); the sprite is upright in a fixed world plane with no billboard behavior.
 The visible sprite is fitted to the 1.35-unit capsule height and at most 0.95 tile spacing in width, using alpha bounds only to configure import scale/pivot; the generated PNG is unchanged.
 Supporting grid motion is published before player movement, synchronized to physics, and carried vertically even while input is locked.
@@ -108,10 +112,12 @@ Existing skill slots and spell SO layouts are preserved.
 ## Map authoring and terrain surfaces
 
 Open Tools > Hex Wave > Grid Painter (window title Hex Map Editor).
-Structure layer: Select / Floor / Wall / Erase; radius is in hex steps. Wall response selects the existing shared Fixed, Absorb or Amplify profile. No Free wall was added.
+Structure layer: Select / Floor / Wall / Erase / Height; radius is in hex steps. Wall response selects the existing shared Fixed, Absorb or Amplify profile. No Free wall was added.
 Wall Top offset H is relative to the original floor top (local 1.5). Column depth D extends downward:
 top = 1.5 + H, bottom = 1.5 + H - D.
 Increasing D does not raise the top; increasing H moves both top/bottom together. A Floor always restores the original top and depth.
+Height brush adds Height Delta to Top offset on existing authored Wall cells only. Positive raises and negative lowers. Floors (including automatically fixed outer floor cells) and empty coordinates are skipped. Each cell is changed at most once per mouse-down/up stroke; another stroke adds again. Column depth, mesh, material and wall response are preserved, and no height clamp is imposed. The Scene brush and selected-cell panel show the predicted top offset.
+Height-only strokes do not rebuild wave topology; they update the authored base transform/collision pose and support Undo. Top offset does not become wave displacement or damage.
 The map still treats missing neighbors as automatic fixed wave boundaries. Explicit wall painting separately chooses shared response behavior.
 Surface / Material layer paints Grass / Dirt / Rock / Snow / Water on existing cells without changing role, geometry or navigation. Water is a visual profile only.
 The 2D canvas and Scene View brush edit the same scene objects. Wheel zooms, MMB pans, Frame Map fits the map and Reset View restores default framing.
@@ -131,13 +137,24 @@ HexWaveRenderer no longer applies wave height gradients or legacy wall material 
 Tools > Hex Wave > Install Terrain And Player In Active Scene is explicit and never runs on import.
 It creates only missing surface assets/Variant, registers one central DB/player manager, upgrades cell meshes and connects the scene actor.
 Existing authored surface profiles and player Variant settings are preserved on subsequent runs.
-No package, AbyssToolKit source, camera architecture or project setting is changed.
+No package, AbyssToolKit source or project setting is changed.
 
 ## Player / terrain verification
 
-Tools > Hex Wave > Verify Terrain And Player Assets checks 148 conditions, including shared surfaces/shaders, true Variant/CC setup, mesh winding/UV density, six-direction quantization, brush rebuild batching, Undo, surface isolation and actor-transparent terrain picking in an isolated physics scene.
+Tools > Hex Wave > Verify Terrain And Player Assets checks 155 conditions, including shared surfaces/shaders, true Variant/CC setup, mesh winding/UV density, six-direction quantization, brush rebuild batching, positive/negative height strokes, once-per-stroke behavior, floor/empty-cell exclusion, Undo, surface isolation and actor-transparent terrain picking in an isolated physics scene.
 HexTerrainPlayerVerification.RunPlay() must run in Play Mode; it checks registration, real CC movement, existing lock ownership, carry during controlled lift and return, cast direction/commit, and falling respawn.
 The existing spell simulation verification remains available. Test fixtures are temporary and do not replace the scene map or authored spells.
+HexTerrainPlayerVerification.RunFollowPlay() checks 9 conditions in Play Mode: FollowTarget activation, a single active registered camera, no competing drag, fixed Y during player height changes, both horizontal axes, camera offset and angle preservation.
+
+## Valley demo scene
+
+Assets/Scenes/S_HexTerrainDemo.unity is a copy of the current main scene with an authored replacement map. Main-scene terrain is preserved, including pre-existing unsaved authoring changes saved before the camera upgrade.
+The demo has 541 cells: 258 walls and 283 connected, walkable floor cells. Wall top offsets range from -0.5 to 4.5. All floors remain at the original baseline.
+It uses the existing Grass/Dirt/Rock/Snow/Water profiles: a central clearing, branching dirt trails and crossings, a western river, a southeastern basin, stepped rock ridges and snow caps. The water cells are lowered, non-walkable walls; they have no additional water physics.
+Two Amplify and two Absorb posts demonstrate the existing shared boundary profiles. Other walls use Fixed. No spell or shared response SO was changed.
+The copied enemy manager is enabled in this scene only: 3 enemies per 3-second step, spawn distances 8 through 12. The map has 148 spawn candidates, and every walkable cell is connected to 000.
+Generated columns reuse persistent mesh assets at depths 2.5, 3.5, 4, 4.5, 5.5, 6 and 6.5 (plus the existing depths). No level-generation script is added to Assets; the result is an ordinary editable scene.
+Open the scene and press Play directly in the Editor. Build Settings and the package-owned MySceneManager scene registry are unchanged. The latter reports an unregistered-scene warning and skips automatic save loading for the demo; this does not prevent its player, camera, waves or enemies from running.
 
 ## Placeholder art provenance
 

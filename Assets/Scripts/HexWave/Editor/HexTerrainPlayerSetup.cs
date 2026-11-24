@@ -64,6 +64,7 @@ namespace NangClicker.HexWave.Editor
             motorData.ApplyModifiedProperties();
             motor.transform.position = spawnTile.SurfacePoint + Vector3.up * 0.03f;
             PrefabUtility.RecordPrefabInstancePropertyModifications(motor); PrefabUtility.RecordPrefabInstancePropertyModifications(motor.transform);
+            ConfigureHorizontalFollowCamera(map,motor);
             var spell = map.GetComponent<SpellManager>();
             if (spell != null)
             {
@@ -74,12 +75,81 @@ namespace NangClicker.HexWave.Editor
                 if (text.name == "Guide Text")
                 {
                     Undo.RecordObject(text, "Update player controls");
-                    text.text = "OBJECTIVE\n\nStop enemies from reaching the center. Moving hexes damage enemies. Base HP 0 means defeat.\n\nCONTROLS\n\nWASD - Move wizard\n1 / 2 / 3 - Select spell\nHold Left Mouse on a hex - Charge\nRelease when READY - Cast\nRelease early / RMB / Esc - Cancel\nCharging locks movement\nAuto Aim - Player hex toward target hex\nR - Rotate in Manual mode\nMMB Drag / Wheel - Camera / Zoom\nI - Toggle Guide\nAlt+R - Restart";
+                    text.text = "OBJECTIVE\n\nStop enemies from reaching the center. Moving hexes damage enemies. Base HP 0 means defeat.\n\nCONTROLS\n\nWASD - Move wizard\n1 / 2 / 3 - Select spell\nHold Left Mouse on a hex - Charge\nRelease when READY - Cast\nRelease early / RMB / Esc - Cancel\nCharging locks movement\nAuto Aim - Player hex toward target hex\nR - Rotate in Manual mode\nWheel - Camera zoom\nCamera follows player horizontally\nI - Toggle Guide\nAlt+R - Restart";
                     EditorUtility.SetDirty(text); PrefabUtility.RecordPrefabInstancePropertyModifications(text);
                 }
             EditorSceneManager.MarkSceneDirty(map.gameObject.scene); EditorSceneManager.SaveScene(map.gameObject.scene);
             AssetDatabase.SaveAssets(); Physics.SyncTransforms();
             Debug.Log("[Hex Terrain] Installed shared surfaces, UV columns, registered player Variant and scene integration.");
+        }
+
+        [MenuItem("Tools/Hex Wave/Use Horizontal Player Follow Camera")]
+        public static void InstallHorizontalFollowCamera()
+        {
+            if(EditorApplication.isPlayingOrWillChangePlaymode)throw new InvalidOperationException("Exit Play Mode first.");
+            var map=Object.FindFirstObjectByType<HexWaveManager>();
+            var motor=Object.FindFirstObjectByType<HexPlayerMotor>();
+            if(map==null || motor==null)throw new InvalidOperationException("Scene needs a hex map and player.");
+            ConfigureHorizontalFollowCamera(map,motor);
+            foreach(var text in Object.FindObjectsByType<TextMeshProUGUI>(FindObjectsInactive.Include,FindObjectsSortMode.None))
+                if(text.name=="Guide Text")
+                {
+                    Undo.RecordObject(text,"Update follow camera guide");
+                    text.text=text.text.Replace("MMB Drag / Wheel - Camera / Zoom","Wheel - Camera zoom\nCamera follows player horizontally");
+                    EditorUtility.SetDirty(text);PrefabUtility.RecordPrefabInstancePropertyModifications(text);
+                }
+            EditorSceneManager.MarkSceneDirty(map.gameObject.scene);
+            EditorSceneManager.SaveScene(map.gameObject.scene);
+        }
+
+        private static void ConfigureHorizontalFollowCamera(HexWaveManager map,HexPlayerMotor motor)
+        {
+            var camera=Camera.main;
+            if(camera==null)camera=map.GetComponentInChildren<Camera>(true);
+            if(camera==null)throw new InvalidOperationException("Scene camera is missing.");
+            var existing=camera.GetComponent<HexPlayerFollowCamera>();
+            float near=12,far=55,zoom=3;
+            var drag=camera.GetComponent<CameraDragController>();
+            if(drag!=null)
+            {
+                var old=new SerializedObject(drag);
+                near=old.FindProperty("minZoomDistance").floatValue;far=old.FindProperty("maxZoomDistance").floatValue;
+                // The old authoring value may be a large free-map step; use a readable follow-camera wheel step.
+                zoom=Mathf.Clamp(old.FindProperty("zoomSpeed").floatValue,0.1f,5);
+                Undo.DestroyObjectImmediate(drag);
+            }
+            if(existing==null)
+            {
+                var old=camera.GetComponent<CameraBase>();
+                if(old!=null)Undo.DestroyObjectImmediate(old);
+                existing=Undo.AddComponent<HexPlayerFollowCamera>(camera.gameObject);
+            }
+            else
+            {
+                var current=new SerializedObject(existing);
+                near=current.FindProperty("minDistance").floatValue;far=current.FindProperty("maxDistance").floatValue;
+                zoom=current.FindProperty("zoomSpeed").floatValue;
+            }
+            Undo.RecordObject(existing,"Configure horizontal player camera");
+            var data=new SerializedObject(existing);
+            data.FindProperty("cameraMode").intValue=(int)CameraMode.FollowTarget;
+            data.FindProperty("reliedCameraComponents").arraySize=0;
+            data.FindProperty("target").objectReferenceValue=null;
+            data.FindProperty("followSource").objectReferenceValue=motor.transform;
+            data.FindProperty("followPlaneHeight").floatValue=map.CellsRoot.TransformPoint(Vector3.up*HexColumnMeshBuilder.TopDatum).y;
+            data.FindProperty("followActivePlayer").boolValue=true;data.FindProperty("activateOnStart").boolValue=true;
+            data.FindProperty("targetOffset").vector3Value=new Vector3(0,0.65f,0);
+            data.FindProperty("depthFollowWeight").floatValue=1;
+            data.FindProperty("yaw").floatValue=camera.transform.eulerAngles.y;
+            data.FindProperty("pitch").floatValue=Mathf.Clamp(camera.transform.eulerAngles.x,10,89);
+            float distance=Vector3.Distance(camera.transform.position,motor.transform.position+Vector3.up*0.65f);
+            data.FindProperty("distance").floatValue=Mathf.Clamp(distance,near,far);
+            data.FindProperty("minDistance").floatValue=near;data.FindProperty("maxDistance").floatValue=far;
+            data.FindProperty("zoomSpeed").floatValue=zoom;data.FindProperty("enableZoom").boolValue=true;
+            data.FindProperty("rotateWithTarget").boolValue=false;data.FindProperty("smoothTime").floatValue=0.12f;
+            data.FindProperty("enableLookAhead").boolValue=false;data.FindProperty("clampPosition").boolValue=false;
+            data.FindProperty("drawDebug").boolValue=false;data.ApplyModifiedProperties();
+            EditorUtility.SetDirty(existing);PrefabUtility.RecordPrefabInstancePropertyModifications(existing);
         }
         private static void CreateSurfaces()
         {

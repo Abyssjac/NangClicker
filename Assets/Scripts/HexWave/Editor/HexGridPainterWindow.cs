@@ -8,13 +8,14 @@ namespace NangClicker.HexWave.Editor
     public sealed class HexGridPainterWindow : EditorWindow
     {
         private enum Layer { Structure, Surface }
-        private enum StructureBrush { Select, Floor, Wall, Erase }
+        private enum StructureBrush { Select, Floor, Wall, Erase, Height }
         [SerializeField] private HexWaveManager manager;
         [SerializeField] private Layer layer;
         [SerializeField] private StructureBrush structureBrush = StructureBrush.Floor;
         [SerializeField] private Key_HexBoundaryProfilePP wallResponse = Key_HexBoundaryProfilePP.Fixed;
         [SerializeField] private Key_HexTerrainSurfacePP surface = Key_HexTerrainSurfacePP.Grass;
         [SerializeField] private float wallHeight, wallDepth = 1.5f;
+        [SerializeField] private float heightDelta = 0.25f;
         [SerializeField] private int brushRadius;
         [SerializeField] private HexEditorCanvasView canvas = new HexEditorCanvasView();
         [SerializeField] private bool paintInScene = true;
@@ -89,13 +90,19 @@ namespace NangClicker.HexWave.Editor
             brushRadius = EditorGUILayout.IntSlider("Radius (hex steps)", brushRadius, 0, 5);
             if (layer == Layer.Structure)
             {
-                structureBrush = (StructureBrush)GUILayout.Toolbar((int)structureBrush, new[] { "Select", "Floor", "Wall", "Erase" });
+                structureBrush = (StructureBrush)GUILayout.Toolbar((int)structureBrush, new[] { "Select", "Floor", "Wall", "Erase", "Height" });
                 if (structureBrush == StructureBrush.Wall)
                 {
                     wallResponse = (Key_HexBoundaryProfilePP)EditorGUILayout.EnumPopup("Wall response", wallResponse);
                     wallHeight = EditorGUILayout.FloatField("Top offset", wallHeight);
                     wallDepth = Mathf.Max(0.05f, EditorGUILayout.FloatField("Column depth", wallDepth));
                     EditorGUILayout.HelpBox("Top offset is relative to the floor. Depth extends downward without changing the top. Fixed / Absorb / Amplify only.", MessageType.None);
+                }
+                else if (structureBrush == StructureBrush.Height)
+                {
+                    heightDelta = EditorGUILayout.FloatField("Height delta (+ / -)", heightDelta);
+                    if (!Finite(heightDelta)) heightDelta = 0;
+                    EditorGUILayout.HelpBox("Existing walls only. Adds the delta once per cell per stroke. Floors and empty cells are skipped. Depth, surface and wall response stay unchanged.", MessageType.None);
                 }
             }
             else
@@ -119,6 +126,8 @@ namespace NangClicker.HexWave.Editor
                 EditorGUILayout.LabelField("Role", cell.IsWall ? "Wall" : "Floor");
                 EditorGUILayout.LabelField("Surface", cell.Surface.ToString());
                 EditorGUILayout.LabelField("Top / depth", cell.WallTopHeight.ToString("0.###") + " / " + cell.ColumnDepth.ToString("0.###"));
+                if (layer == Layer.Structure && structureBrush == StructureBrush.Height && cell.IsWall)
+                    EditorGUILayout.LabelField("Next top offset", (cell.WallTopHeight + heightDelta).ToString("0.###"));
                 if (GUILayout.Button("Select Scene Object")) Selection.activeGameObject = cell.gameObject;
                 if (GUILayout.Button("Apply current brush to selected"))
                 { BeginStroke(); Stamp(selected); EndStroke(); }
@@ -134,6 +143,7 @@ namespace NangClicker.HexWave.Editor
         }
         private static Vector2 Plane(HexCoordinate c, float spacing)
         { var p = c.ToLocalPosition(spacing); return new Vector2(p.x, -p.z); }
+        private static bool Finite(float value) => !float.IsNaN(value) && !float.IsInfinity(value);
         private HexCoordinate FromScreen(Vector2 p, Rect rect)
         {
             var local = canvas.ToLocal(p, rect, BaseScale);
@@ -214,6 +224,16 @@ namespace NangClicker.HexWave.Editor
                 EditorUtility.SetDirty(cell); changed=true; return;
             }
             if(structureBrush==StructureBrush.Select)return;
+            if(structureBrush==StructureBrush.Height)
+            {
+                if(!exists || !cell.IsWall || !Finite(heightDelta) || heightDelta==0)return;
+                float nextHeight=cell.WallTopHeight+heightDelta;
+                if(!Finite(nextHeight))return;
+                HexTerrainAuthoring.RecordCell(cell,"Paint Wall Height");
+                cell.SetWallShape(nextHeight,cell.ColumnDepth);
+                HexTerrainAuthoring.Apply(cell,false);
+                changed=true; return;
+            }
             if(structureBrush==StructureBrush.Erase)
             {if(exists){Undo.DestroyObjectImmediate(cell.gameObject);cells.Remove(c);geometryChanged=changed=true;} return;}
             if(structureBrush==StructureBrush.Wall && HexSpellSceneSetup.ResolveProfile(wallResponse)==null)return;
@@ -276,6 +296,12 @@ namespace NangClicker.HexWave.Editor
             var points=new Vector3[7];float radius=manager.CellPrefab!=null?manager.CellPrefab.ColumnRadius:0.6f;
             for(int i=0;i<=6;i++){float a=i*Mathf.PI/3;points[i]=center+manager.CellsRoot.TransformVector(new Vector3(Mathf.Cos(a),0,Mathf.Sin(a))*radius);}
             Handles.color=layer==Layer.Surface?new Color(0.3f,0.8f,1):Color.yellow;Handles.DrawAAPolyLine(3,points);
+            if(layer==Layer.Structure && structureBrush==StructureBrush.Height)
+            {
+                bool valid=existing!=null && existing.IsWall;
+                Handles.Label(center+Vector3.up*0.15f,valid ?
+                    $"Top {existing.WallTopHeight:0.##} -> {existing.WallTopHeight+heightDelta:0.##} ({heightDelta:+0.##;-0.##;0})" : "Height: walls only");
+            }
             if(layer==Layer.Structure&&structureBrush==StructureBrush.Select)return;
             HandleUtility.AddDefaultControl(GUIUtility.GetControlID(FocusType.Passive));
             if(e.type==EventType.MouseDown&&e.button==0){BeginStroke();PaintArea(c);e.Use();}
